@@ -1,6 +1,6 @@
 from idea import Idea
 
-from Enum import Enum
+from enum import Enum
 
 class BracketType(Enum):
     ROUND_ROBIN = "Round Robin"
