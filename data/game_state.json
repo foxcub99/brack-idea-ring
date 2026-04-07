@@ -1,0 +1,66 @@
+{
+  "name": "Brack Idea Ring",
+  "current_stage": 0,
+  "is_paused": false,
+  "message": "Game ready.",
+  "teams": [
+    {
+      "id": "unassigned",
+      "name": "Unassigned",
+      "description": "Leaders that have not been assigned to a team yet.",
+      "color": "#64748b",
+      "member_ids": []
+    },
+    {
+      "id": "6f47340c7a3a4d548eb70bbb48d6de78",
+      "name": "Team A",
+      "description": "desc",
+      "color": "#ff0000",
+      "member_ids": [
+        "0da2c90a494b4979a3c6da976f56e887"
+      ]
+    }
+  ],
+  "leaders": [
+    {
+      "id": "0da2c90a494b4979a3c6da976f56e887",
+      "name": "Alice",
+      "type": null,
+      "site": "Miranda",
+      "team_id": "6f47340c7a3a4d548eb70bbb48d6de78",
+      "can_submit_ideas": false
+    }
+  ],
+  "brackets": [
+    {
+      "id": "main",
+      "name": "Main Bracket",
+      "type": "Main",
+      "target_count": null,
+      "description": "The root bracket that receives new ideas.",
+      "feeds_into": [],
+      "idea_ids": [
+        "748a0cb8d9714dfe808d09641c780ed6"
+      ]
+    }
+  ],
+  "ideas": [
+    {
+      "id": "748a0cb8d9714dfe808d09641c780ed6",
+      "title": "Idea 1",
+      "description": "desc",
+      "point": {
+        "Miranda": null,
+        "Kirrawee": null
+      },
+      "backupPoint": {
+        "Miranda": null,
+        "Kirrawee": null
+      },
+      "rawScore": 0,
+      "created_by_id": "0da2c90a494b4979a3c6da976f56e887",
+      "bracket_id": "main",
+      "status": "draft"
+    }
+  ]
+}

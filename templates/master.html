@@ -1,0 +1,268 @@
+{% extends "base.html" %}
+{% block content %}
+  <section class="hero">
+    <div>
+      <p class="eyebrow">Master screen</p>
+      <h2>Control the game, teams, ideas, and brackets</h2>
+      <p>Use the controls below to move through the stages, keep the game paused, and manage all objects in the game.</p>
+    </div>
+    <div class="status-card">
+      <div class="stat"><span>Stage</span><strong>{{ game.stage_label() }}</strong></div>
+      <div class="stat"><span>Paused</span><strong>{{ "Yes" if game.is_paused else "No" }}</strong></div>
+      <div class="stat"><span>Ideas</span><strong>{{ ideas|length }}</strong></div>
+    </div>
+  </section>
+
+  <section class="grid two-up">
+    <div class="panel">
+      <h3>Game controls</h3>
+      <form class="inline-actions" method="post" action="{{ url_for('master_action') }}">
+        <button name="action" value="rewind_stage" class="secondary">Back</button>
+        <button name="action" value="pause" class="warning">Pause</button>
+        <button name="action" value="resume">Resume</button>
+        <button name="action" value="advance_stage">Next stage</button>
+      </form>
+      <form method="post" action="{{ url_for('master_action') }}" class="stack gap-sm">
+        <input type="hidden" name="action" value="set_stage">
+        <label>Jump to stage</label>
+        <select name="stage_index">
+          {% for index, stage in stage_options %}
+            <option value="{{ index }}" {% if index == game.current_stage %}selected{% endif %}>{{ stage.replace('-', ' ').title() }}</option>
+          {% endfor %}
+        </select>
+        <button type="submit">Set stage</button>
+      </form>
+    </div>
+
+    <div class="panel">
+      <h3>Create team</h3>
+      <form method="post" action="{{ url_for('master_action') }}" class="stack gap-sm">
+        <input type="hidden" name="action" value="create_team">
+        <input name="name" placeholder="Team name">
+        <input name="description" placeholder="Optional description">
+        <input name="color" type="color" value="#2563eb">
+        <button type="submit">Add team</button>
+      </form>
+    </div>
+    <div class="panel">
+      <h3>Modify team</h3>
+      <form method="post" action="{{ url_for('master_action') }}" class="stack gap-sm">
+        <input type="hidden" name="action" value="update_team">
+        <label>Team</label>
+        <select name="team_id">
+          {% for team in teams if team.id != 'unassigned' %}
+            <option value="{{ team.id }}">{{ team.name }}</option>
+          {% endfor %}
+        </select>
+        <input name="name" placeholder="New team name">
+        <input name="description" placeholder="New description">
+        <input name="color" type="color" value="#2563eb">
+        <button type="submit">Save team</button>
+      </form>
+    </div>
+  </section>
+
+  <section class="grid two-up">
+    <div class="panel">
+      <h3>Teams</h3>
+      <div class="list">
+        {% for team in teams %}
+          <article class="list-item">
+            <div>
+              <strong>{{ team.name }}</strong>
+              <div class="muted">{{ team.description or "No description" }}</div>
+              <div class="chip-row">
+                {% for member in team.get_members() %}
+                  <span class="chip">{{ member.name }}</span>
+                {% else %}
+                  <span class="muted">No members</span>
+                {% endfor %}
+              </div>
+            </div>
+          </article>
+        {% endfor %}
+      </div>
+      <form method="post" action="{{ url_for('master_action') }}" class="stack gap-sm">
+        <input type="hidden" name="action" value="assign_leader">
+        <label>Move leader into team</label>
+        <select name="leader_id">
+          {% for leader in leaders %}
+            <option value="{{ leader.id }}">{{ leader.name }}</option>
+          {% endfor %}
+        </select>
+        <select name="team_id">
+          {% for team in teams if team.id != 'unassigned' %}
+            <option value="{{ team.id }}">{{ team.name }}</option>
+          {% endfor %}
+        </select>
+        <button type="submit">Assign</button>
+      </form>
+    </div>
+
+    <div class="panel">
+      <h3>Update leader permissions</h3>
+      <form method="post" action="{{ url_for('master_action') }}" class="stack gap-sm">
+        <input type="hidden" name="action" value="set_leader_permission">
+        <label>Leader</label>
+        <select name="leader_id">
+          {% for leader in leaders %}
+            <option value="{{ leader.id }}">{{ leader.name }}</option>
+          {% endfor %}
+        </select>
+        <label>Leader type</label>
+        <select name="leader_type">
+          <option value="">Leave unchanged</option>
+          {% for option in leader_type_options %}
+            <option value="{{ option }}">{{ option }}</option>
+          {% endfor %}
+        </select>
+        <label>Site</label>
+        <select name="site">
+          <option value="">Leave unchanged</option>
+          {% for option in site_options %}
+            <option value="{{ option }}">{{ option }}</option>
+          {% endfor %}
+        </select>
+        <label class="checkbox"><input type="checkbox" name="can_submit_ideas"> Can submit ideas</label>
+        <button type="submit">Save leader</button>
+      </form>
+    </div>
+  </section>
+
+  <section class="grid two-up">
+    <div class="panel">
+      <h3>Create bracket</h3>
+      <form method="post" action="{{ url_for('master_action') }}" class="stack gap-sm">
+        <input type="hidden" name="action" value="create_bracket">
+        <input name="name" placeholder="Bracket name">
+        <select name="bracket_type">
+          <option value="">Bracket type</option>
+          {% for option in bracket_type_options %}
+            <option value="{{ option }}">{{ option }}</option>
+          {% endfor %}
+        </select>
+        <input name="target_count" type="number" min="0" placeholder="Target count">
+        <textarea name="description" rows="3" placeholder="Optional description"></textarea>
+        <button type="submit">Add bracket</button>
+      </form>
+    </div>
+
+    <div class="panel">
+      <h3>Create idea</h3>
+      <form method="post" action="{{ url_for('master_action') }}" class="stack gap-sm">
+        <input type="hidden" name="action" value="create_idea">
+        <input name="title" placeholder="Idea title">
+        <textarea name="description" rows="3" placeholder="Idea description"></textarea>
+        <label>Created by leader</label>
+        <select name="created_by_id">
+          <option value="">Not assigned</option>
+          {% for leader in leaders %}
+            <option value="{{ leader.id }}">{{ leader.name }}</option>
+          {% endfor %}
+        </select>
+        <button type="submit">Add idea</button>
+      </form>
+    </div>
+    <div class="panel">
+      <h3>Modify idea</h3>
+      <form method="post" action="{{ url_for('master_action') }}" class="stack gap-sm">
+        <input type="hidden" name="action" value="update_idea">
+        <label>Idea</label>
+        <select name="idea_id">
+          {% for idea in ideas %}
+            <option value="{{ idea.id }}">{{ idea.title }}</option>
+          {% endfor %}
+        </select>
+        <input name="title" placeholder="New title">
+        <textarea name="description" rows="3" placeholder="New description"></textarea>
+        <label>Status</label>
+        <select name="status">
+          <option value="">Leave unchanged</option>
+          <option value="draft">Draft</option>
+          <option value="active">Active</option>
+          <option value="review">Review</option>
+          <option value="final">Final</option>
+          <option value="eliminated">Eliminated</option>
+        </select>
+        <label>Bracket</label>
+        <select name="bracket_id">
+          <option value="">Leave unchanged</option>
+          {% for bracket in brackets %}
+            <option value="{{ bracket.id }}">{{ bracket.name }}</option>
+          {% endfor %}
+        </select>
+        <button type="submit">Save idea</button>
+      </form>
+    </div>
+  </section>
+
+  <section class="grid two-up">
+    <div class="panel">
+      <h3>Ideas</h3>
+      <div class="list">
+        {% for idea in ideas %}
+          <article class="list-item">
+            <div>
+              <strong>{{ idea.title }}</strong>
+              <div class="muted">{{ idea.description }}</div>
+              <div class="muted">Bracket: {{ game.get_bracket(idea.bracket_id).name if idea.bracket_id and game.get_bracket(idea.bracket_id) else "Main / unassigned" }}</div>
+            </div>
+          </article>
+        {% endfor %}
+      </div>
+      <form method="post" action="{{ url_for('master_action') }}" class="stack gap-sm">
+        <input type="hidden" name="action" value="move_idea">
+        <label>Move idea</label>
+        <select name="idea_id">
+          {% for idea in ideas %}
+            <option value="{{ idea.id }}">{{ idea.title }}</option>
+          {% endfor %}
+        </select>
+        <select name="bracket_id">
+          {% for bracket in brackets %}
+            <option value="{{ bracket.id }}">{{ bracket.name }}</option>
+          {% endfor %}
+        </select>
+        <button type="submit">Move</button>
+      </form>
+    </div>
+
+    <div class="panel">
+      <h3>Bracket links</h3>
+      <div class="list">
+        {% for bracket in brackets %}
+          <article class="list-item">
+            <div>
+              <strong>{{ bracket.name }}</strong>
+              <div class="muted">{{ bracket.type or "No type" }}</div>
+              <div class="chip-row">
+                {% for target_id in bracket.feeds_into %}
+                  {% set target = game.get_bracket(target_id) %}
+                  {% if target %}<span class="chip">→ {{ target.name }}</span>{% endif %}
+                {% else %}
+                  <span class="muted">No downstream brackets</span>
+                {% endfor %}
+              </div>
+            </div>
+          </article>
+        {% endfor %}
+      </div>
+      <form method="post" action="{{ url_for('master_action') }}" class="stack gap-sm">
+        <input type="hidden" name="action" value="link_brackets">
+        <label>Source bracket</label>
+        <select name="source_bracket_id">
+          {% for bracket in brackets %}
+            <option value="{{ bracket.id }}">{{ bracket.name }}</option>
+          {% endfor %}
+        </select>
+        <label>Feeds into</label>
+        <select name="target_bracket_id">
+          {% for bracket in brackets %}
+            <option value="{{ bracket.id }}">{{ bracket.name }}</option>
+          {% endfor %}
+        </select>
+        <button type="submit">Link</button>
+      </form>
+    </div>
+  </section>
+{% endblock %}

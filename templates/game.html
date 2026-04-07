@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block content %}
+  <section class="hero">
+    <div>
+      <p class="eyebrow">Game screen</p>
+      <h2>Current progress and join link</h2>
+      <p>This screen is the public game view. It shows the current stage, where the game is paused, and the QR code for players to log in.</p>
+    </div>
+    <div class="status-card">
+      <div class="stat"><span>Stage</span><strong>{{ game_summary.stage_label }}</strong></div>
+      <div class="stat"><span>Paused</span><strong>{{ "Yes" if game_summary.is_paused else "No" }}</strong></div>
+      <div class="stat"><span>Ideas</span><strong>{{ game_summary.idea_count }}</strong></div>
+    </div>
+  </section>
+
+  <section class="grid two-up">
+    <div class="panel center">
+      <h3>Join the game</h3>
+      <img class="qr" src="{{ qr_data_url }}" alt="QR code to log in">
+      <p class="muted">Open the logon page on a phone by scanning the QR code or using the URL below.</p>
+      <a href="{{ login_url }}" class="button-link">{{ login_url }}</a>
+    </div>
+    <div class="panel">
+      <h3>Game notes</h3>
+      <ul class="notes">
+        <li>Team-lead idea collection and all-player idea collection are supported as stages.</li>
+        <li>Ideas can be moved into brackets, and brackets can point to other brackets.</li>
+        <li>The scoring and pairing view is a placeholder for the next iteration.</li>
+      </ul>
+      <div class="callout">
+        <strong>Stage flow:</strong> {{ game_summary.stage_label }}
+      </div>
+    </div>
+  </section>
+
+  <section class="grid two-up">
+    <div class="panel">
+      <h3>Teams</h3>
+      {% for team in game_summary.teams %}
+        <article class="list-item">
+          <div>
+            <strong>{{ team.name }}</strong>
+            <div class="muted">{{ team.description or "No description" }}</div>
+            <div class="chip-row">
+              {% for member in team.members %}
+                <span class="chip">{{ member.name }}</span>
+              {% else %}
+                <span class="muted">No members yet</span>
+              {% endfor %}
+            </div>
+          </div>
+        </article>
+      {% endfor %}
+    </div>
+    <div class="panel">
+      <h3>Brackets</h3>
+      {% for bracket in game_summary.brackets %}
+        <article class="list-item">
+          <div>
+            <strong>{{ bracket.name }}</strong>
+            <div class="muted">{{ bracket.type or "No type" }}</div>
+            <div class="chip-row">
+              {% for idea in bracket.ideas %}
+                <span class="chip">{{ idea.title }}</span>
+              {% else %}
+                <span class="muted">No ideas yet</span>
+              {% endfor %}
+            </div>
+          </div>
+        </article>
+      {% endfor %}
+    </div>
+  </section>
+{% endblock %}

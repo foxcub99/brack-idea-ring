@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ title or "Brack Idea Ring" }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <div class="eyebrow">Brack Idea Ring</div>
+        <h1>{{ title or "Game Control Center" }}</h1>
+      </div>
+      <nav class="nav">
+        <a href="{{ url_for('master_screen') }}">Master</a>
+        <a href="{{ url_for('game_screen') }}">Game</a>
+        <a href="{{ url_for('user_screen') }}">User</a>
+      </nav>
+    </header>
+    <main class="container">
+      {% with messages = get_flashed_messages() %}
+        {% if messages %}
+          <section class="alerts">
+            {% for message in messages %}
+              <div class="alert">{{ message }}</div>
+            {% endfor %}
+          </section>
+        {% endif %}
+      {% endwith %}
+      {% block content %}{% endblock %}
+    </main>
+  </body>
+</html>

@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block content %}
+  <section class="hero">
+    <div>
+      <p class="eyebrow">Welcome back</p>
+      <h2>{{ leader.name }}</h2>
+      <p>Team: {{ team.name if team else "Unassigned" }} · Stage: {{ game.stage_label() }}</p>
+    </div>
+    <form method="post" action="{{ url_for('user_logout') }}">
+      <button class="secondary" type="submit">Log out</button>
+    </form>
+  </section>
+
+  <section class="grid two-up">
+    <div class="panel">
+      <h3>Your profile</h3>
+      <div class="stat-grid">
+        <div class="stat"><span>Site</span><strong>{{ leader.site or "Not set" }}</strong></div>
+        <div class="stat"><span>Leader type</span><strong>{{ leader.type or "Not set" }}</strong></div>
+        <div class="stat"><span>Can submit ideas</span><strong>{{ "Yes" if can_submit else "No" }}</strong></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>Submit an idea</h3>
+      {% if can_submit %}
+        <form method="post" action="{{ url_for('user_submit_idea') }}" class="stack gap-sm">
+          <input name="title" placeholder="Idea title" required>
+          <textarea name="description" rows="4" placeholder="Idea description"></textarea>
+          <button type="submit">Send idea</button>
+        </form>
+      {% else %}
+        <p class="muted">Idea input is not open for your account yet. Wait for the game master to unlock it.</p>
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="grid two-up">
+    <div class="panel">
+      <h3>Your ideas</h3>
+      {% for idea in leader_ideas %}
+        <article class="list-item">
+          <div>
+            <strong>{{ idea.title }}</strong>
+            <div class="muted">{{ idea.description }}</div>
+          </div>
+        </article>
+      {% else %}
+        <p class="muted">You have not submitted any ideas yet.</p>
+      {% endfor %}
+    </div>
+
+    <div class="panel">
+      <h3>Team ideas</h3>
+      {% for idea in team_ideas %}
+        <article class="list-item">
+          <div>
+            <strong>{{ idea.title }}</strong>
+            <div class="muted">{{ idea.description }}</div>
+          </div>
+        </article>
+      {% else %}
+        <p class="muted">No team ideas yet.</p>
+      {% endfor %}
+    </div>
+  </section>
+{% endblock %}
