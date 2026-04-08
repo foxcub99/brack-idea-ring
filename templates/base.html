@@ -3,20 +3,21 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{{ title or "Brack Idea Ring" }}</title>
+    <title>{{ title or "BRACK-IDEA-RING" }}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
   </head>
-  <body>
+  <body data-page="{{ page_name or '' }}" data-auto-refresh="{{ '1' if auto_refresh else '0' }}" data-state-poll-url="{{ state_poll_url or '' }}">
     <header class="topbar">
       <div>
-        <div class="eyebrow">Brack Idea Ring</div>
-        <h1>{{ title or "Game Control Center" }}</h1>
+        <h1>{{ header_title or "BRACK-IDEA-RING" }}</h1>
       </div>
+      {% if show_nav %}
       <nav class="nav">
         <a href="{{ url_for('master_screen') }}">Master</a>
         <a href="{{ url_for('game_screen') }}">Game</a>
         <a href="{{ url_for('user_screen') }}">User</a>
       </nav>
+      {% endif %}
     </header>
     <main class="container">
       {% with messages = get_flashed_messages() %}
@@ -28,7 +29,10 @@
           </section>
         {% endif %}
       {% endwith %}
-      {% block content %}{% endblock %}
+      <div id="live-root" data-live-region>
+        {% block content %}{% endblock %}
+      </div>
     </main>
+    <script src="{{ url_for('static', filename='app.js') }}" defer></script>
   </body>
 </html>

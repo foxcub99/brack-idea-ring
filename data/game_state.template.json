@@ -1,0 +1,34 @@
+{
+  "name": "Brack Idea Ring",
+  "current_stage": 0,
+  "is_paused": false,
+  "message": "Game ready.",
+  "team_order": [
+    "unassigned"
+  ],
+  "bracket_order": [
+    "main"
+  ],
+  "teams": [
+    {
+      "id": "unassigned",
+      "name": "Unassigned",
+      "description": "Leaders that have not been assigned to a team yet.",
+      "color": "#64748b",
+      "member_ids": []
+    }
+  ],
+  "leaders": [],
+  "brackets": [
+    {
+      "id": "main",
+      "name": "Main Bracket",
+      "type": "Main",
+      "target_count": null,
+      "description": "The root bracket that receives new ideas.",
+      "feeds_into": [],
+      "idea_ids": []
+    }
+  ],
+  "ideas": []
+}

@@ -1,191 +1,343 @@
 {% extends "base.html" %}
 {% block content %}
-  <section class="hero">
-    <div>
-      <p class="eyebrow">Master screen</p>
-      <h2>Control the game, teams, ideas, and brackets</h2>
-      <p>Use the controls below to move through the stages, keep the game paused, and manage all objects in the game.</p>
+  <section class="tabs" data-tabs>
+    <div class="tab-bar">
+      <button type="button" class="tab-button" data-tab-button="game">Game</button>
+      <button type="button" class="tab-button" data-tab-button="people">People</button>
+      <button type="button" class="tab-button" data-tab-button="ideas">Ideas</button>
+      <button type="button" class="tab-button" data-tab-button="brackets">Brackets</button>
     </div>
-    <div class="status-card">
-      <div class="stat"><span>Stage</span><strong>{{ game.stage_label() }}</strong></div>
-      <div class="stat"><span>Paused</span><strong>{{ "Yes" if game.is_paused else "No" }}</strong></div>
-      <div class="stat"><span>Ideas</span><strong>{{ ideas|length }}</strong></div>
-    </div>
-  </section>
 
-  <section class="grid two-up">
-    <div class="panel">
-      <h3>Game controls</h3>
-      <form class="inline-actions" method="post" action="{{ url_for('master_action') }}">
-        <button name="action" value="rewind_stage" class="secondary">Back</button>
-        <button name="action" value="pause" class="warning">Pause</button>
-        <button name="action" value="resume">Resume</button>
-        <button name="action" value="advance_stage">Next stage</button>
-      </form>
-      <form method="post" action="{{ url_for('master_action') }}" class="stack gap-sm">
-        <input type="hidden" name="action" value="set_stage">
-        <label>Jump to stage</label>
-        <select name="stage_index">
-          {% for index, stage in stage_options %}
-            <option value="{{ index }}" {% if index == game.current_stage %}selected{% endif %}>{{ stage.replace('-', ' ').title() }}</option>
+    <div class="tab-panel" data-tab-panel="game">
+      <div class="grid two-up">
+        <div class="panel">
+          <h3>Playing</h3>
+          <form class="inline-actions" method="post" action="{{ url_for('master_action') }}">
+            <button name="action" value="rewind_stage" class="secondary">Back</button>
+            <button name="action" value="pause" class="warning">Pause</button>
+            <button name="action" value="resume">Resume</button>
+            <button name="action" value="advance_stage">Next stage</button>
+          </form>
+          <form method="post" action="{{ url_for('master_action') }}" class="stack gap-sm">
+            <input type="hidden" name="action" value="set_stage">
+            <label>Jump to stage</label>
+            <select name="stage_index">
+              {% for index, stage in stage_options %}
+                <option value="{{ index }}" {% if index == game.current_stage %}selected{% endif %}>{{ stage.replace('-', ' ').title() }}</option>
+              {% endfor %}
+            </select>
+            <button type="submit">Set stage</button>
+          </form>
+        </div>
+
+        <div class="panel">
+          <h3>Saving</h3>
+          <form method="post" action="{{ url_for('master_action') }}" class="stack gap-sm">
+            <input type="hidden" name="action" value="reset_to_template">
+            <button type="submit" class="warning">Reset to template</button>
+          </form>
+          <form method="post" action="{{ url_for('master_action') }}" class="stack gap-sm">
+            <input type="hidden" name="action" value="save_state">
+            <label>Save name</label>
+            <input name="save_name" placeholder="e.g. round-1-after-sort">
+            <button type="submit">Save game state</button>
+          </form>
+          <form method="post" action="{{ url_for('master_action') }}" class="stack gap-sm">
+            <input type="hidden" name="action" value="load_state">
+            <label>Load state</label>
+            <select name="load_state_name">
+              {% for state_name in saved_states %}
+                <option value="{{ state_name }}">{{ state_name }}</option>
+              {% else %}
+                <option value="">No saved states</option>
+              {% endfor %}
+            </select>
+            <button type="submit">Load game state</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-panel" data-tab-panel="people">
+      <section class="panel">
+        <h3>Teams</h3>
+        <div class="team-grid">
+          {% for team in teams %}
+            <div class="team-row" draggable="true" data-team-row data-team-id="{{ team.id }}">
+              <div class="team-drag-handle" title="Drag to reorder">⋮⋮</div>
+              <input class="team-input" name="name" value="{{ team.name }}" placeholder="Team name" data-team-field="name">
+              <input class="team-input team-wide" name="description" value="{{ team.description }}" placeholder="Description" data-team-field="description">
+              <input class="team-input team-color" type="color" value="{{ team.color }}" data-team-field="color">
+              <div class="team-count">{{ team.get_members()|length }} members</div>
+              <button type="button" class="secondary" data-team-save>Save</button>
+            </div>
           {% endfor %}
-        </select>
-        <button type="submit">Set stage</button>
-      </form>
-    </div>
+          <div class="team-row team-row-new" data-team-new-row>
+            <div class="team-drag-handle inactive">＋</div>
+            <input class="team-input" name="name" placeholder="New team" data-team-new-name>
+            <input class="team-input team-wide" name="description" placeholder="Description" data-team-new-description>
+            <input class="team-input team-color" type="color" value="#2563eb" data-team-new-color>
+            <div class="team-count">New team</div>
+            <button type="button" data-team-create>Create</button>
+          </div>
+        </div>
+      </section>
 
-    <div class="panel">
-      <h3>Create team</h3>
-      <form method="post" action="{{ url_for('master_action') }}" class="stack gap-sm">
-        <input type="hidden" name="action" value="create_team">
-        <input name="name" placeholder="Team name">
-        <input name="description" placeholder="Optional description">
-        <input name="color" type="color" value="#2563eb">
-        <button type="submit">Add team</button>
-      </form>
-    </div>
-    <div class="panel">
-      <h3>Modify team</h3>
-      <form method="post" action="{{ url_for('master_action') }}" class="stack gap-sm">
-        <input type="hidden" name="action" value="update_team">
-        <label>Team</label>
-        <select name="team_id">
-          {% for team in teams if team.id != 'unassigned' %}
-            <option value="{{ team.id }}">{{ team.name }}</option>
-          {% endfor %}
-        </select>
-        <input name="name" placeholder="New team name">
-        <input name="description" placeholder="New description">
-        <input name="color" type="color" value="#2563eb">
-        <button type="submit">Save team</button>
-      </form>
-    </div>
-  </section>
-
-  <section class="grid two-up">
-    <div class="panel">
-      <h3>Teams</h3>
-      <div class="list">
-        {% for team in teams %}
-          <article class="list-item">
-            <div>
-              <strong>{{ team.name }}</strong>
-              <div class="muted">{{ team.description or "No description" }}</div>
-              <div class="chip-row">
-                {% for member in team.get_members() %}
-                  <span class="chip">{{ member.name }}</span>
+      <section class="panel">
+        <h3>Leaders</h3>
+        <div class="leader-board" data-leader-board>
+          {% for team in teams %}
+            <div class="leader-column" data-team-column data-team-id="{{ team.id }}">
+              <div class="leader-column-head">
+                <strong>{{ team.name }}</strong>
+                <span>{{ team.get_members()|length }}</span>
+              </div>
+              <div class="leader-dropzone" data-leader-dropzone="{{ team.id }}">
+                {% for leader in leaders_by_team[team.id] %}
+                  <div class="leader-card" draggable="true" data-leader-card data-leader-id="{{ leader.id }}" data-leader-name="{{ leader.name }}" data-leader-type="{{ leader.type or '' }}" data-leader-site="{{ leader.site or '' }}" data-leader-can-submit="{{ '1' if leader.can_submit_ideas else '0' }}">
+                    <strong>{{ leader.name }}</strong>
+                    <div class="muted">{{ leader.type or "No type" }} · {{ leader.site or "No site" }}</div>
+                  </div>
                 {% else %}
-                  <span class="muted">No members</span>
+                  <div class="leader-empty">Drop leaders here</div>
                 {% endfor %}
               </div>
             </div>
-          </article>
-        {% endfor %}
-      </div>
-      <form method="post" action="{{ url_for('master_action') }}" class="stack gap-sm">
-        <input type="hidden" name="action" value="assign_leader">
-        <label>Move leader into team</label>
-        <select name="leader_id">
-          {% for leader in leaders %}
-            <option value="{{ leader.id }}">{{ leader.name }}</option>
           {% endfor %}
-        </select>
-        <select name="team_id">
-          {% for team in teams if team.id != 'unassigned' %}
-            <option value="{{ team.id }}">{{ team.name }}</option>
-          {% endfor %}
-        </select>
-        <button type="submit">Assign</button>
-      </form>
+        </div>
+
+        <div class="leader-modal hidden" data-leader-modal>
+          <div class="leader-modal-card">
+            <div class="leader-modal-head">
+              <strong>Edit leader</strong>
+              <button type="button" class="secondary" data-leader-close>Close</button>
+            </div>
+            <form class="stack gap-sm" data-api-form="update_leader">
+              <input type="hidden" name="leader_id" data-leader-id-field>
+              <label>Name</label>
+              <input name="name" data-leader-name-field>
+              <label>Leader type</label>
+              <select name="leader_type" data-leader-type-field>
+                <option value="">Not set</option>
+                {% for option in leader_type_options %}
+                  <option value="{{ option }}">{{ option }}</option>
+                {% endfor %}
+              </select>
+              <label>Site</label>
+              <select name="site" data-leader-site-field>
+                <option value="">Not set</option>
+                {% for option in site_options %}
+                  <option value="{{ option }}">{{ option }}</option>
+                {% endfor %}
+              </select>
+              <label class="checkbox"><input type="checkbox" name="can_submit_ideas" data-leader-submit-field> Can submit ideas</label>
+              <button type="submit">Save leader</button>
+            </form>
+          </div>
+        </div>
+      </section>
     </div>
 
-    <div class="panel">
-      <h3>Update leader permissions</h3>
-      <form method="post" action="{{ url_for('master_action') }}" class="stack gap-sm">
-        <input type="hidden" name="action" value="set_leader_permission">
-        <label>Leader</label>
-        <select name="leader_id">
-          {% for leader in leaders %}
-            <option value="{{ leader.id }}">{{ leader.name }}</option>
+    <div class="tab-panel" data-tab-panel="ideas">
+      <div class="grid two-up ideas-top-grid">
+        <section class="panel ideas-panel" data-ideas-panel>
+          <h3>Add idea</h3>
+          <form class="stack gap-sm idea-create-form" data-api-form="create_idea">
+            <input name="title" placeholder="Idea title">
+            <input name="description" placeholder="Idea description (optional)">
+            <div class="inline-fields compact-inline">
+              <select name="category">
+                {% for category in categories %}
+                  <option value="{{ category.name }}">{{ category.name }}</option>
+                {% endfor %}
+              </select>
+              <select name="assigned_leader_id">
+                <option value="">Assign leader (optional)</option>
+                {% for leader in leaders %}
+                  <option value="{{ leader.id }}">{{ leader.name }}</option>
+                {% endfor %}
+              </select>
+              <select name="assigned_team_id">
+                <option value="">Assign team (optional)</option>
+                {% for team in teams %}
+                  <option value="{{ team.id }}">{{ team.name }}</option>
+                {% endfor %}
+              </select>
+              <button type="submit">Add idea</button>
+            </div>
+          </form>
+        </section>
+
+        <section class="panel categories-panel">
+          <h3>Categories</h3>
+          <form class="stack gap-sm" data-api-form="create_category">
+            <div class="inline-fields compact-inline">
+              <input name="name" placeholder="New category name">
+              <input type="color" name="color" value="#38bdf8">
+              <button type="submit">Create</button>
+            </div>
+          </form>
+          <div class="category-list" data-category-list>
+            {% for category in categories %}
+              <form class="category-row" data-api-form="update_category">
+                <input type="hidden" name="old_name" value="{{ category.name }}">
+                <input name="new_name" value="{{ category.name }}">
+                <input type="color" name="color" value="{{ category.color }}">
+                <button type="submit" class="secondary">Save</button>
+              </form>
+            {% endfor %}
+          </div>
+        </section>
+      </div>
+
+      <section class="panel ideas-list-panel">
+        <div class="panel-head">
+          <h3>Ideas</h3>
+          <div class="inline-actions compact-actions">
+            <select data-ideas-sort>
+              <option value="submitted">Sort: time submitted</option>
+              <option value="category">Sort: category</option>
+              <option value="team">Sort: team</option>
+              <option value="title">Sort: title</option>
+            </select>
+            <button type="button" class="secondary" data-ideas-toggle-description>Show descriptions</button>
+            <select data-ideas-direction>
+              <option value="desc">Newest / Z-A</option>
+              <option value="asc">Oldest / A-Z</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="idea-list compact-list" data-ideas-list>
+          {% for idea in ideas %}
+            <article class="idea-card compact" draggable="true" data-idea-card data-idea-id="{{ idea.id }}" data-idea-title="{{ idea.title }}" data-idea-category="{{ idea.category or 'General' }}" data-idea-team="{{ idea.team_name or 'Unassigned' }}" data-idea-created="{{ idea.created_at or '' }}" data-idea-bracket="{{ idea.bracket_name or 'Main / unassigned' }}" data-idea-bracket-id="{{ idea.bracket_id or '' }}" data-idea-description="{{ idea.description|e }}" data-idea-assigned-team-id="{{ idea.assigned_team_id or '' }}" data-idea-assigned-leader-id="{{ idea.assigned_leader_id or '' }}">
+              <div class="idea-card-title-row">
+                <strong>{{ idea.title }}</strong>
+                <div class="idea-meta compact-meta">
+                  <span class="chip" style="background: {{ idea.category_color or '#38bdf8' }}22; border: 1px solid {{ idea.category_color or '#38bdf8' }}66;">{{ idea.category or "General" }}</span>
+                  <span>{{ idea.team_name or "Unassigned" }}</span>
+                  <span>{{ idea.created_at or "" }}</span>
+                </div>
+                <button type="button" class="secondary" data-idea-edit>Edit</button>
+              </div>
+              <div class="idea-description-row">{{ idea.description or "No description" }}</div>
+            </article>
           {% endfor %}
-        </select>
-        <label>Leader type</label>
-        <select name="leader_type">
-          <option value="">Leave unchanged</option>
-          {% for option in leader_type_options %}
-            <option value="{{ option }}">{{ option }}</option>
-          {% endfor %}
-        </select>
-        <label>Site</label>
-        <select name="site">
-          <option value="">Leave unchanged</option>
-          {% for option in site_options %}
-            <option value="{{ option }}">{{ option }}</option>
-          {% endfor %}
-        </select>
-        <label class="checkbox"><input type="checkbox" name="can_submit_ideas"> Can submit ideas</label>
-        <button type="submit">Save leader</button>
-      </form>
+        </div>
+      </section>
+    </div>
+
+    <div class="tab-panel" data-tab-panel="brackets">
+      <section class="panel brackets-panel">
+          <div class="panel-head">
+            <h3>Brackets</h3>
+          </div>
+
+          <form class="stack gap-sm bracket-editor" data-api-form="create_bracket">
+            <div class="inline-fields">
+              <input name="name" placeholder="Bracket name">
+              <select name="bracket_type">
+                <option value="">Type</option>
+                {% for option in bracket_type_options %}
+                  <option value="{{ option }}">{{ option }}</option>
+                {% endfor %}
+              </select>
+              <input name="target_count" type="number" min="0" placeholder="Target size">
+            </div>
+            <textarea name="description" rows="2" placeholder="Description"></textarea>
+            <button type="submit">Add bracket</button>
+          </form>
+
+          <form class="stack gap-sm bracket-editor" data-api-form="update_bracket">
+            <input type="hidden" name="bracket_id" data-bracket-edit-id>
+            <div class="inline-fields">
+              <select data-bracket-select>
+                <option value="">Choose bracket to edit</option>
+                {% for bracket in brackets %}
+                  <option value="{{ bracket.id }}">{{ bracket.name }}</option>
+                {% endfor %}
+              </select>
+              <input name="name" placeholder="Edit name">
+              <select name="bracket_type">
+                <option value="">Type</option>
+                {% for option in bracket_type_options %}
+                  <option value="{{ option }}">{{ option }}</option>
+                {% endfor %}
+              </select>
+              <input name="target_count" type="number" min="0" placeholder="Target size">
+            </div>
+            <textarea name="description" rows="2" placeholder="Edit description"></textarea>
+            <button type="submit">Save bracket</button>
+          </form>
+
+          <div class="bracket-board" data-bracket-board>
+            {% for bracket in brackets %}
+              <article class="bracket-card" data-bracket-card data-bracket-id="{{ bracket.id }}" data-bracket-name="{{ bracket.name }}" data-bracket-type="{{ bracket.type or '' }}" data-bracket-target-count="{{ bracket.target_count or '' }}" data-bracket-description="{{ bracket.description|e }}">
+                <div class="bracket-head">
+                  <div class="bracket-link-handle" data-bracket-link-handle title="Drag to link">◉</div>
+                  <div>
+                    <strong>{{ bracket.name }}</strong>
+                    <div class="muted">{{ bracket.type or "No type" }} · Target {{ bracket.target_count or "—" }}</div>
+                  </div>
+                  <button type="button" class="secondary" data-bracket-edit>Pick</button>
+                </div>
+                <div class="muted">{{ bracket.description or "No description" }}</div>
+                <div class="bracket-ideas" data-bracket-ideas>
+                  {% for idea in ideas_by_bracket[bracket.id] %}
+                    <div class="chip idea-chip" draggable="true" data-idea-chip data-idea-id="{{ idea.id }}">{{ idea.title }}</div>
+                  {% else %}
+                    <div class="muted">Drop ideas here</div>
+                  {% endfor %}
+                </div>
+                <div class="bracket-links">
+                  {% for target_id in bracket.feeds_into %}
+                    {% set target = game.get_bracket(target_id) %}
+                    {% if target %}<span class="chip">→ {{ target.name }}</span>{% endif %}
+                  {% else %}
+                    <span class="muted">No downstream brackets</span>
+                  {% endfor %}
+                </div>
+              </article>
+            {% endfor %}
+          </div>
+      </section>
     </div>
   </section>
 
-  <section class="grid two-up">
-    <div class="panel">
-      <h3>Create bracket</h3>
-      <form method="post" action="{{ url_for('master_action') }}" class="stack gap-sm">
-        <input type="hidden" name="action" value="create_bracket">
-        <input name="name" placeholder="Bracket name">
-        <select name="bracket_type">
-          <option value="">Bracket type</option>
-          {% for option in bracket_type_options %}
-            <option value="{{ option }}">{{ option }}</option>
+  <div class="idea-edit-modal hidden" data-idea-modal>
+    <div class="idea-edit-card">
+      <div class="leader-modal-head">
+        <strong>Edit idea</strong>
+        <button type="button" class="secondary" data-idea-close>Close</button>
+      </div>
+      <form class="stack gap-sm" data-api-form="update_idea">
+        <input type="hidden" name="idea_id" data-idea-id-field>
+        <label>Title</label>
+        <input name="title" data-idea-title-field>
+        <label>Category</label>
+        <select name="category" data-idea-category-field>
+          {% for category in categories %}
+            <option value="{{ category.name }}">{{ category.name }}</option>
           {% endfor %}
         </select>
-        <input name="target_count" type="number" min="0" placeholder="Target count">
-        <textarea name="description" rows="3" placeholder="Optional description"></textarea>
-        <button type="submit">Add bracket</button>
-      </form>
-    </div>
-
-    <div class="panel">
-      <h3>Create idea</h3>
-      <form method="post" action="{{ url_for('master_action') }}" class="stack gap-sm">
-        <input type="hidden" name="action" value="create_idea">
-        <input name="title" placeholder="Idea title">
-        <textarea name="description" rows="3" placeholder="Idea description"></textarea>
-        <label>Created by leader</label>
-        <select name="created_by_id">
-          <option value="">Not assigned</option>
+        <label>Description</label>
+        <textarea name="description" rows="3" data-idea-description-field></textarea>
+        <label>Assigned leader (optional)</label>
+        <select name="assigned_leader_id" data-idea-assigned-leader-field>
+          <option value="">None</option>
           {% for leader in leaders %}
             <option value="{{ leader.id }}">{{ leader.name }}</option>
           {% endfor %}
         </select>
-        <button type="submit">Add idea</button>
-      </form>
-    </div>
-    <div class="panel">
-      <h3>Modify idea</h3>
-      <form method="post" action="{{ url_for('master_action') }}" class="stack gap-sm">
-        <input type="hidden" name="action" value="update_idea">
-        <label>Idea</label>
-        <select name="idea_id">
-          {% for idea in ideas %}
-            <option value="{{ idea.id }}">{{ idea.title }}</option>
+        <label>Assigned team (optional)</label>
+        <select name="assigned_team_id" data-idea-assigned-team-field>
+          <option value="">None</option>
+          {% for team in teams %}
+            <option value="{{ team.id }}">{{ team.name }}</option>
           {% endfor %}
         </select>
-        <input name="title" placeholder="New title">
-        <textarea name="description" rows="3" placeholder="New description"></textarea>
-        <label>Status</label>
-        <select name="status">
-          <option value="">Leave unchanged</option>
-          <option value="draft">Draft</option>
-          <option value="active">Active</option>
-          <option value="review">Review</option>
-          <option value="final">Final</option>
-          <option value="eliminated">Eliminated</option>
-        </select>
         <label>Bracket</label>
-        <select name="bracket_id">
+        <select name="bracket_id" data-idea-bracket-field>
           <option value="">Leave unchanged</option>
           {% for bracket in brackets %}
             <option value="{{ bracket.id }}">{{ bracket.name }}</option>
@@ -194,75 +346,5 @@
         <button type="submit">Save idea</button>
       </form>
     </div>
-  </section>
-
-  <section class="grid two-up">
-    <div class="panel">
-      <h3>Ideas</h3>
-      <div class="list">
-        {% for idea in ideas %}
-          <article class="list-item">
-            <div>
-              <strong>{{ idea.title }}</strong>
-              <div class="muted">{{ idea.description }}</div>
-              <div class="muted">Bracket: {{ game.get_bracket(idea.bracket_id).name if idea.bracket_id and game.get_bracket(idea.bracket_id) else "Main / unassigned" }}</div>
-            </div>
-          </article>
-        {% endfor %}
-      </div>
-      <form method="post" action="{{ url_for('master_action') }}" class="stack gap-sm">
-        <input type="hidden" name="action" value="move_idea">
-        <label>Move idea</label>
-        <select name="idea_id">
-          {% for idea in ideas %}
-            <option value="{{ idea.id }}">{{ idea.title }}</option>
-          {% endfor %}
-        </select>
-        <select name="bracket_id">
-          {% for bracket in brackets %}
-            <option value="{{ bracket.id }}">{{ bracket.name }}</option>
-          {% endfor %}
-        </select>
-        <button type="submit">Move</button>
-      </form>
-    </div>
-
-    <div class="panel">
-      <h3>Bracket links</h3>
-      <div class="list">
-        {% for bracket in brackets %}
-          <article class="list-item">
-            <div>
-              <strong>{{ bracket.name }}</strong>
-              <div class="muted">{{ bracket.type or "No type" }}</div>
-              <div class="chip-row">
-                {% for target_id in bracket.feeds_into %}
-                  {% set target = game.get_bracket(target_id) %}
-                  {% if target %}<span class="chip">→ {{ target.name }}</span>{% endif %}
-                {% else %}
-                  <span class="muted">No downstream brackets</span>
-                {% endfor %}
-              </div>
-            </div>
-          </article>
-        {% endfor %}
-      </div>
-      <form method="post" action="{{ url_for('master_action') }}" class="stack gap-sm">
-        <input type="hidden" name="action" value="link_brackets">
-        <label>Source bracket</label>
-        <select name="source_bracket_id">
-          {% for bracket in brackets %}
-            <option value="{{ bracket.id }}">{{ bracket.name }}</option>
-          {% endfor %}
-        </select>
-        <label>Feeds into</label>
-        <select name="target_bracket_id">
-          {% for bracket in brackets %}
-            <option value="{{ bracket.id }}">{{ bracket.name }}</option>
-          {% endfor %}
-        </select>
-        <button type="submit">Link</button>
-      </form>
-    </div>
-  </section>
+  </div>
 {% endblock %}

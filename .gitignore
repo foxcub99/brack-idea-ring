@@ -1,1 +1,3 @@
 .venv/
+data/*.json
+!data/game_state.template.json

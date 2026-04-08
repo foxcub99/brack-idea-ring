@@ -1,11 +1,17 @@
 {% extends "base.html" %}
 {% block content %}
   <section class="auth-card panel narrow">
-    <p class="eyebrow">User screen</p>
-    <h2>Log in to join the game</h2>
-    <p>Enter your name to create or resume your leader profile. The session will stay on this device for later use.</p>
+    <h2>Log in to join!</h2>
     <form method="post" action="{{ url_for('user_login') }}" class="stack gap-sm">
+      <label>Name</label>
       <input name="name" placeholder="Your name" autocomplete="name" required>
+      <label>Leader type</label>
+      <select name="leader_type">
+        <option value="">Choose a leader type</option>
+        {% for option in leader_type_options %}
+          <option value="{{ option }}">{{ option }}</option>
+        {% endfor %}
+      </select>
       <label>Site</label>
       <select name="site">
         <option value="">Choose a site</option>
