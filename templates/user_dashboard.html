@@ -1,5 +1,8 @@
 {% extends "base.html" %}
 {% block content %}
+  <div class="user-brand">
+    <img class="user-brand-logo" src="{{ url_for('static', filename='images/brackidearing-logo.png') }}" alt="BRACK IDEA RING">
+  </div>
   <section class="hero">
     <div>
       <h2>{{ leader.name }}</h2>
@@ -78,11 +81,12 @@
       <h3>Please wait</h3>
       <p class="muted">The game master is organizing brackets.</p>
     </section>
-  {% elif game.stage == 'pairing' %}
+  {% elif game.is_round_stage() or game.is_prepare_stage() %}
     <section class="panel">
       {% if pairing_matchups %}
         {% set matchup = pairing_matchups[0] %}
         {% set my_site = leader.site or '' %}
+        <div class="eyebrow">Round {{ game.current_round_number() }}</div>
         {% if matchup.ideas|length == 1 %}
           <h3>{{ matchup.ideas[0].title }}</h3>
         {% elif matchup.ideas|length == 2 %}

@@ -101,6 +101,7 @@ class Game:
         return 1
 
     def rounds_display(self):
+        self._sync_matchup_round_assignments()
         matchup_map = {matchup.get("id"): matchup for matchup in self.pairing_matchups_display()}
         rows = []
         self._sync_rounds()
@@ -108,6 +109,65 @@ class Game:
             round_matchups = [matchup_map[mid] for mid in round_obj.matchup_ids if mid in matchup_map]
             rows.append({"id": round_obj.id, "number": round_obj.number, "name": round_obj.name, "matchups": round_matchups})
         return rows
+
+    def _sync_matchup_round_assignments(self):
+        self._sync_rounds()
+        matchups = self.pairing_round.get("matchups", [])
+        if not matchups:
+            return
+
+        matchup_by_id = {matchup.get("id"): matchup for matchup in matchups if matchup.get("id")}
+        assigned_matchup_ids = set()
+
+        for round_obj in self.rounds:
+            kept_matchups = []
+            for matchup_id in round_obj.matchup_ids:
+                matchup = matchup_by_id.get(matchup_id)
+                if not matchup:
+                    continue
+                matchup["round_id"] = round_obj.id
+                matchup["bracket_round"] = round_obj.number
+                matchup["order"] = len(kept_matchups) + 1
+                kept_matchups.append(matchup_id)
+                assigned_matchup_ids.add(matchup_id)
+            round_obj.matchup_ids = kept_matchups
+
+        for matchup in matchups:
+            matchup_id = matchup.get("id")
+            if not matchup_id:
+                continue
+            if matchup_id in assigned_matchup_ids:
+                continue
+
+            target_round = None
+            round_id = matchup.get("round_id")
+            if round_id:
+                target_round = next((round_obj for round_obj in self.rounds if round_obj.id == round_id), None)
+
+            if target_round is None:
+                try:
+                    round_number = int(matchup.get("bracket_round", 1) or 1)
+                except Exception:
+                    round_number = 1
+                target_round = self.round_for_number(max(1, min(round_number, len(self.rounds))))
+
+            if target_round:
+                matchup["round_id"] = target_round.id
+                matchup["bracket_round"] = target_round.number
+                target_round.add_matchup(matchup_id)
+                matchup["order"] = target_round.matchup_ids.index(matchup_id) + 1
+                assigned_matchup_ids.add(matchup_id)
+
+        if not assigned_matchup_ids:
+            first_round = self.round_for_number(1)
+            if first_round:
+                first_round.matchup_ids = [matchup.get("id") for matchup in matchups if matchup.get("id")]
+                for idx, matchup_id in enumerate(first_round.matchup_ids, start=1):
+                    matchup = matchup_by_id.get(matchup_id)
+                    if matchup:
+                        matchup["round_id"] = first_round.id
+                        matchup["bracket_round"] = first_round.number
+                        matchup["order"] = idx
 
     def assign_matchup_to_round(self, matchup_id, round_id):
         self._sync_rounds()
@@ -695,6 +755,7 @@ class Game:
     def _enter_pairing_stage(self, *, force_rebuild=False, reset_roles=False):
         existing_matchups = self.pairing_round.get("matchups", [])
         if existing_matchups and not force_rebuild:
+            self._sync_matchup_round_assignments()
             return
 
         idea_ids = [idea.id for idea in self.ideas_sorted(sort_by="submitted", descending=False)]
@@ -758,9 +819,11 @@ class Game:
             first_round = self.round_for_number(1)
             if first_round:
                 first_round.matchup_ids = [matchup.get("id") for matchup in matchups if matchup.get("id")]
+        self._sync_matchup_round_assignments()
 
     def current_matchup(self):
         """Get the current active matchup for users to vote on."""
+        self._sync_matchup_round_assignments()
         matchups = self.active_round_matchups()
         index = self.pairing_round.get("current_matchup_index", 0)
         if 0 <= index < len(matchups):
@@ -768,7 +831,7 @@ class Game:
         return None
 
     def active_round_matchups(self):
-        self._sync_rounds()
+        self._sync_matchup_round_assignments()
         matchup_map = {matchup.get("id"): matchup for matchup in self.pairing_round.get("matchups", [])}
         round_obj = self.round_for_number(self.current_round_number())
         if round_obj and round_obj.matchup_ids:
@@ -833,6 +896,9 @@ class Game:
     def cast_vote(self, matchup_id, idea_id, leader_id):
         matchup = self._matchup_by_id(matchup_id)
         if not self.is_round_stage() or not matchup:
+            return False
+        current_matchup_ids = {item.get("id") for item in self.active_round_matchups()}
+        if matchup_id not in current_matchup_ids:
             return False
         if idea_id not in matchup.get("idea_ids", []):
             return False

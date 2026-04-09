@@ -668,7 +668,7 @@ def user_screen():
         is_team_submitter=is_team_submitter,
         pairing_matchups=pairing_matchups,
         show_nav=False,
-        header_title="BRACK-IDEA-RING",
+        show_header=False,
         auto_refresh=True,
         page_name="user-dashboard",
     )
@@ -681,7 +681,7 @@ def user_login():
             "user_login.html",
             game=GAME,
             show_nav=False,
-            header_title="BRACK-IDEA-RING",
+            show_header=False,
             auto_refresh=True,
             page_name="user-login",
         )
