@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
   {% set round_stage = game.is_round_stage() or game.is_prepare_stage() %}
+  {% set complete_stage = game.stage == 'complete' %}
   {% if round_stage %}
     {% set matchup = current_matchup %}
     <section class="game-screen game-screen-round" style="--game-bg-url: url('{{ round_bg_url }}');">
@@ -25,10 +26,13 @@
                   <div>{{ nomination.name }} from {{ nomination.site }} has nominated for {{ nomination.role }}.</div>
                 {% endfor %}
               </div>
+              {% if not game.pairing_round.show_result %}
+                <div class="matchup-votes">Votes: {{ matchup.ideas[0].votes }}</div>
+              {% endif %}
               {% if game.pairing_round.show_result and matchup.result %}
                 <div class="matchup-score">Total score: {{ matchup.ideas[0].score }}</div>
                 {% if matchup.result.tie or matchup.result.winner_id == matchup.ideas[0].id %}
-                  <img class="result-image small" src="{{ winner_image_url }}" alt="Winner">
+                  <img class="result-image game-winner-image" src="{{ winner_image_url }}" alt="Winner">
                 {% endif %}
               {% endif %}
             {% endif %}
@@ -47,16 +51,47 @@
                   <div>{{ nomination.name }} from {{ nomination.site }} has nominated for {{ nomination.role }}.</div>
                 {% endfor %}
               </div>
+              {% if not game.pairing_round.show_result %}
+                <div class="matchup-votes">Votes: {{ matchup.ideas[1].votes }}</div>
+              {% endif %}
               {% if game.pairing_round.show_result and matchup.result %}
                 <div class="matchup-score">Total score: {{ matchup.ideas[1].score }}</div>
                 {% if matchup.result.tie or matchup.result.winner_id == matchup.ideas[1].id %}
-                  <img class="result-image small" src="{{ winner_image_url }}" alt="Winner">
+                  <img class="result-image game-winner-image" src="{{ winner_image_url }}" alt="Winner">
                 {% endif %}
               {% endif %}
             {% endif %}
           </article>
         </div>
       {% endif %}
+    </section>
+  {% elif complete_stage %}
+    <section class="game-screen game-screen-complete" style="--game-bg-url: url('{{ round_bg_url }}');">
+      <div class="final-results-board">
+        <h2>Final bracket results</h2>
+        {% if final_bracket %}
+          <div class="final-results-subtitle">{{ final_bracket.name }}</div>
+        {% endif %}
+
+        {% if final_rankings %}
+          <div class="final-results-list">
+            {% for row in final_rankings %}
+              <article class="final-result-item">
+                <div class="final-rank-badge">#{{ row.rank }}</div>
+                <div class="final-result-content">
+                  <h3>{{ row.title }}</h3>
+                  {% if row.description %}
+                    <p>{{ row.description }}</p>
+                  {% endif %}
+                  <div class="final-result-meta">Pts {{ row.points }} · W {{ row.won }} · L {{ row.lost }} · T {{ row.tied }}</div>
+                </div>
+              </article>
+            {% endfor %}
+          </div>
+        {% else %}
+          <p class="muted">No ranked ideas are available in the Final bracket yet.</p>
+        {% endif %}
+      </div>
     </section>
   {% else %}
     <section class="game-screen game-screen-intro" style="--game-bg-url: url('{{ intro_bg_url }}');">

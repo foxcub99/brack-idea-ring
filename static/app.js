@@ -817,7 +817,7 @@
     };
 
     tick();
-    if ($all("[data-cooldown-button], [data-cooldown-label]").length) {
+    if ($all("[data-cooldown-button], [data-cooldown-label], [data-matchup-countdown-end]").length) {
       state.cooldownUiTimer = setInterval(tick, 100);
     }
   }

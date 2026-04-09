@@ -606,6 +606,80 @@ button.warning { background: linear-gradient(135deg, var(--warning), #fb7185); }
   padding: 2rem;
 }
 
+.game-screen-complete {
+  display: grid;
+  place-items: center;
+  padding: 2rem;
+}
+
+.final-results-board {
+  width: min(980px, calc(100vw - 3rem));
+  max-height: calc(100vh - 5rem);
+  overflow: auto;
+  border-radius: 28px;
+  padding: 1.4rem;
+  background: rgba(2, 6, 23, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 16px 60px rgba(2, 6, 23, 0.45);
+}
+
+.final-results-board h2 {
+  margin: 0;
+  font-size: clamp(1.4rem, 2.8vw, 2.2rem);
+  color: #fff;
+}
+
+.final-results-subtitle {
+  margin-top: 0.3rem;
+  margin-bottom: 0.9rem;
+  color: rgba(255, 255, 255, 0.78);
+  font-weight: 700;
+}
+
+.final-results-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.final-result-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.75rem;
+  align-items: center;
+  border-radius: 18px;
+  padding: 0.75rem 0.9rem;
+  background: rgba(255, 255, 255, 0.09);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.final-rank-badge {
+  min-width: 72px;
+  padding: 0.35rem 0.55rem;
+  border-radius: 999px;
+  text-align: center;
+  font-weight: 900;
+  color: #fff;
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.95), rgba(129, 140, 248, 0.95));
+}
+
+.final-result-content h3 {
+  margin: 0;
+  color: #fff;
+  font-size: clamp(1.05rem, 2vw, 1.4rem);
+}
+
+.final-result-content p {
+  margin: 0.3rem 0 0;
+  color: rgba(255, 255, 255, 0.86);
+}
+
+.final-result-meta {
+  margin-top: 0.35rem;
+  color: rgba(255, 255, 255, 0.72);
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
 .game-countdown {
   position: absolute;
   top: 3.5%;
@@ -655,6 +729,13 @@ button.warning { background: linear-gradient(135deg, var(--warning), #fb7185); }
   font-size: 1rem;
 }
 
+.matchup-votes {
+  margin: 0;
+  color: rgba(226, 232, 240, 0.98);
+  font-size: 1.15rem;
+  font-weight: 800;
+}
+
 .matchup-nominations {
   display: grid;
   gap: 0.25rem;
@@ -685,6 +766,11 @@ button.warning { background: linear-gradient(135deg, var(--warning), #fb7185); }
 .result-image.small {
   width: 96px;
   max-width: 96px;
+}
+
+.game-winner-image {
+  width: min(672px, 92%);
+  max-width: 672px;
 }
 
 .matchup-stage.show-result .matchup-vs {

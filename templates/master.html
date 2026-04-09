@@ -128,7 +128,7 @@
                     {% for nomination in idea.nominations %}
                       <div class="muted">{{ nomination.name }} from {{ nomination.site }} has nominated for {{ nomination.role }}.</div>
                     {% endfor %}
-                    {% if game.pairing_round.show_result %}
+                    {% if game.pairing_round.show_result and is_current %}
                       <div class="matchup-score">Total score: {{ idea.score }}</div>
                       {% if matchup.result and not matchup.result.tie and matchup.result.winner_id == idea.id %}
                         <img class="result-image small" src="{{ url_for('static', filename='images/winner.png') }}" alt="Winner">

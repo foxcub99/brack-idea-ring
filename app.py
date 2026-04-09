@@ -572,6 +572,8 @@ def game_screen():
     active_matchups = GAME.active_round_matchups_display()
     current_matchup_index = GAME.pairing_round.get("current_matchup_index", 0)
     current_matchup = active_matchups[current_matchup_index] if active_matchups and 0 <= current_matchup_index < len(active_matchups) else None
+    final_bracket = GAME.final_bracket()
+    final_rankings = GAME.final_bracket_rankings()
     return render_template(
         "game.html",
         game_summary=GAME.summary(),
@@ -580,6 +582,8 @@ def game_screen():
         current_matchup_remaining=GAME.current_matchup_countdown_remaining(),
         current_matchup_end=GAME.current_matchup_countdown_end(),
         current_matchup_paused=GAME.pairing_round.get("countdown_paused", False),
+        final_bracket=final_bracket,
+        final_rankings=final_rankings,
         intro_bg_url=intro_bg,
         round_bg_url=round_bg,
         winner_image_url=url_for("static", filename="images/winner.png"),
@@ -606,7 +610,7 @@ def user_screen():
             "user_login.html",
             game=GAME,
             show_nav=False,
-            header_title="BRACK-IDEA-RING",
+            show_header=False,
             auto_refresh=True,
             page_name="user-login",
         )

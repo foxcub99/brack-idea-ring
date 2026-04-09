@@ -223,8 +223,9 @@ class Game:
         return value
 
     def toggle_result_view(self):
-        self.pairing_round["show_result"] = not self.pairing_round.get("show_result", False)
-        return self.pairing_round["show_result"]
+        # Result button should reveal (and refresh) result for the active matchup.
+        self.pairing_round["show_result"] = True
+        return True
 
     def set_matchup_started_now(self):
         self.pairing_round["matchup_started_at"] = time.time()
@@ -601,6 +602,35 @@ class Game:
 
         return sorted(views, key=sort_key)
 
+    def final_bracket(self):
+        return next((bracket for bracket in self.ordered_brackets() if str(bracket.name or "").strip().lower() == "final"), None)
+
+    def final_bracket_rankings(self):
+        bracket = self.final_bracket()
+        if not bracket:
+            return []
+
+        for idea in bracket.ideas:
+            bracket.ensure_standing(idea.id)
+
+        ranking_rows = []
+        for rank, (idea_id, row) in enumerate(bracket.ranking(), start=1):
+            idea = self.get_idea(idea_id)
+            ranking_rows.append(
+                {
+                    "rank": rank,
+                    "idea_id": idea_id,
+                    "title": idea.title if idea else str(idea_id),
+                    "description": idea.description if idea else "",
+                    "played": int(row.get("played", 0) or 0),
+                    "won": int(row.get("won", 0) or 0),
+                    "lost": int(row.get("lost", 0) or 0),
+                    "tied": int(row.get("tied", 0) or 0),
+                    "points": int(row.get("points", 0) or 0),
+                }
+            )
+        return ranking_rows
+
     def bracket_preview(self, bracket: Bracket):
         seed_ids = [idea_id for idea_id in bracket.seed_order if idea_id in {idea.id for idea in bracket.ideas}]
         for idea in bracket.ideas:
@@ -847,6 +877,7 @@ class Game:
             self.finalize_matchup_result(current.get("id"))
         if index + 1 < len(matchups):
             self.pairing_round["current_matchup_index"] = index + 1
+            self.pairing_round["show_result"] = False
             self.set_matchup_started_now()
             return True
         return False
@@ -856,6 +887,7 @@ class Game:
         index = self.pairing_round.get("current_matchup_index", 0)
         if index > 0:
             self.pairing_round["current_matchup_index"] = index - 1
+            self.pairing_round["show_result"] = False
             self.set_matchup_started_now()
             return True
         return False
