@@ -6,7 +6,8 @@
     <title>{{ title or "BRACK-IDEA-RING" }}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
   </head>
-  <body data-page="{{ page_name or '' }}" data-auto-refresh="{{ '1' if auto_refresh else '0' }}" data-state-poll-url="{{ state_poll_url or '' }}">
+  <body data-page="{{ page_name or '' }}" data-auto-refresh="{{ '1' if auto_refresh else '0' }}" data-state-poll-url="{{ state_poll_url or '' }}" data-full-bleed="{{ '1' if full_bleed else '0' }}">
+    {% if show_header is not defined or show_header %}
     <header class="topbar">
       <div>
         <h1>{{ header_title or "BRACK-IDEA-RING" }}</h1>
@@ -19,7 +20,8 @@
       </nav>
       {% endif %}
     </header>
-    <main class="container">
+    {% endif %}
+    <main class="container {% if full_bleed %}full-bleed{% endif %}">
       {% with messages = get_flashed_messages() %}
         {% if messages %}
           <section class="alerts">

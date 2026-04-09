@@ -2,11 +2,177 @@
 {% block content %}
   <section class="hero">
     <div>
-      <h2>{{ game.stage_label() }} Stage</h2>
+      <h2>{{ leader.name }}</h2>
       <p>Team: {{ team.name if team else "Unassigned" }} · Site: {{ leader.site or "Not set" }} · Leader type: {{ leader.type or "Not set" }}</p>
     </div>
-    <form method="post" action="{{ url_for('user_logout') }}">
-      <button class="secondary" type="submit">Log out</button>
-    </form>
   </section>
+
+  {% if game.stage == 'team-leads-ideas' %}
+    <section class="grid two-up">
+      {% if not team_has_submitter %}
+        <div class="panel">
+          <h3>Submitter selection</h3>
+          <p class="muted">Volunteer if you want the master to pick you as your team's submitter.</p>
+          <form method="post" action="{{ url_for('user_volunteer_submitter') }}">
+            <button type="submit">Volunteer to be the ideas submitter</button>
+          </form>
+        </div>
+      {% endif %}
+
+      <div class="panel">
+        <h3>Your team ideas</h3>
+        {% if team_has_submitter and not is_team_submitter %}
+          <p class="muted">Ideas submitter: {{ team_submitter.name }}</p>
+        {% endif %}
+        {% if can_submit_ideas and is_team_submitter %}
+          <form method="post" action="{{ url_for('user_submit_idea') }}" class="stack gap-sm">
+            <input name="title" placeholder="Idea title" required>
+            <input name="description" placeholder="Idea description (optional)">
+            <button type="submit">Add idea</button>
+          </form>
+        {% else %}
+          <p class="muted">Waiting for master to choose your team's submitter.</p>
+        {% endif %}
+        <div class="idea-list compact-list">
+          {% for idea in team_ideas %}
+            <article class="idea-card compact">
+              <strong>{{ idea.title }}</strong>
+              <div class="idea-description-row user-visible-description">{{ idea.description or 'No description' }}</div>
+            </article>
+          {% else %}
+            <div class="muted">No ideas yet for your team.</div>
+          {% endfor %}
+        </div>
+      </div>
+    </section>
+  {% elif game.stage == 'all-ideas' %}
+    <section class="grid two-up">
+      <div class="panel">
+        <h3>Submit idea</h3>
+        {% if can_submit_ideas %}
+          <form method="post" action="{{ url_for('user_submit_idea') }}" class="stack gap-sm">
+            <input name="title" placeholder="Idea title" required>
+            <input name="description" placeholder="Idea description (optional)">
+            <button type="submit">Add idea</button>
+          </form>
+        {% else %}
+          <p class="muted">You are not assigned to a team yet.</p>
+        {% endif %}
+      </div>
+      <div class="panel">
+        <h3>Your team ideas</h3>
+        <div class="idea-list compact-list">
+          {% for idea in team_ideas %}
+            <article class="idea-card compact">
+              <strong>{{ idea.title }}</strong>
+              <div class="idea-description-row user-visible-description">{{ idea.description or 'No description' }}</div>
+            </article>
+          {% else %}
+            <div class="muted">No ideas yet for your team.</div>
+          {% endfor %}
+        </div>
+      </div>
+    </section>
+  {% elif game.stage == 'bracket-sorting' %}
+    <section class="panel center">
+      <h3>Please wait</h3>
+      <p class="muted">The game master is organizing brackets.</p>
+    </section>
+  {% elif game.stage == 'pairing' %}
+    <section class="panel">
+      {% if pairing_matchups %}
+        {% set matchup = pairing_matchups[0] %}
+        {% set my_site = leader.site or '' %}
+        {% if matchup.ideas|length == 1 %}
+          <h3>{{ matchup.ideas[0].title }}</h3>
+        {% elif matchup.ideas|length == 2 %}
+          <h3>{{ matchup.ideas[0].title }} vs {{ matchup.ideas[1].title }}</h3>
+        {% else %}
+          <h3>Matchup</h3>
+        {% endif %}
+        {% if game.message %}
+          <p class="muted">{{ game.message }}</p>
+        {% endif %}
+        <div class="pairing-grid">
+          <article class="pairing-card">
+            {% set cooldown = matchup.cooldowns[my_site] if my_site else 0 %}
+            {% set cooldown_until = matchup.cooldown_untils[my_site] if my_site else 0 %}
+            {% for idea in matchup.ideas %}
+              <form method="post" action="{{ url_for('user_vote_idea') }}" class="pairing-idea-row">
+                <input type="hidden" name="matchup_id" value="{{ matchup.id }}">
+                <input type="hidden" name="idea_id" value="{{ idea.id }}">
+                <button type="submit" class="secondary">
+                  <strong>{{ idea.title }}</strong>
+                  <span class="chip">{{ idea.votes }}</span>
+                  <div class="muted">{{ idea.description or 'No description' }}</div>
+                </button>
+              </form>
+              <form method="post" action="{{ url_for('user_speak_to_idea') }}" class="inline-actions speak-action-row">
+                <input type="hidden" name="matchup_id" value="{{ matchup.id }}">
+                <input type="hidden" name="idea_id" value="{{ idea.id }}">
+                <button type="submit" class="secondary speak-button">Speak to an idea</button>
+              </form>
+              {% if my_site %}
+                {% set point_id = idea.point_ids[my_site] %}
+                {% set backup_id = idea.backup_ids[my_site] %}
+                {% set point_name = idea.point[my_site] %}
+                {% set backup_name = idea.backup[my_site] %}
+                <div class="nomination-block" data-cooldown-block>
+                  {% if cooldown > 0 %}
+                    <div class="muted" data-cooldown-label data-cooldown-key="{{ matchup.id }}:{{ my_site }}" data-cooldown-until="{{ cooldown_until }}">Cooldown: {{ '%.1f'|format(cooldown) }}s</div>
+                  {% else %}
+                    <div class="muted hidden" data-cooldown-label data-cooldown-key="{{ matchup.id }}:{{ my_site }}" data-cooldown-until="{{ cooldown_until }}"></div>
+                  {% endif %}
+
+                  {% if point_id %}
+                    <div class="muted">{{ point_name }} has nominated themselves to be on point.</div>
+                    {% if point_id == leader.id %}
+                      <form method="post" action="{{ url_for('user_nominate_opt_out') }}" class="inline-actions">
+                        <input type="hidden" name="matchup_id" value="{{ matchup.id }}">
+                        <input type="hidden" name="idea_id" value="{{ idea.id }}">
+                        <button type="submit" class="secondary">Opt out of point</button>
+                      </form>
+                    {% elif leader.type == 'Adult' and not backup_id %}
+                      <form method="post" action="{{ url_for('user_nominate_role') }}" class="inline-actions">
+                        <input type="hidden" name="matchup_id" value="{{ matchup.id }}">
+                        <input type="hidden" name="idea_id" value="{{ idea.id }}">
+                        <input type="hidden" name="role" value="backup">
+                        <button type="submit" class="cooldown-fill" data-cooldown-button data-cooldown-key="{{ matchup.id }}:{{ my_site }}" data-cooldown-until="{{ cooldown_until }}" data-cooldown-duration="{{ game.NOMINATION_COOLDOWN_SECONDS }}">Nominate me for backup point</button>
+                      </form>
+                    {% endif %}
+
+                    {% if backup_id %}
+                      <div class="muted">{{ backup_name }} has nominated themselves to be backup point.</div>
+                      {% if backup_id == leader.id %}
+                        <form method="post" action="{{ url_for('user_nominate_opt_out') }}" class="inline-actions">
+                          <input type="hidden" name="matchup_id" value="{{ matchup.id }}">
+                          <input type="hidden" name="idea_id" value="{{ idea.id }}">
+                          <button type="submit" class="secondary">Opt out of backup point</button>
+                        </form>
+                      {% endif %}
+                    {% endif %}
+                  {% else %}
+                    <form method="post" action="{{ url_for('user_nominate_role') }}" class="inline-actions">
+                      <input type="hidden" name="matchup_id" value="{{ matchup.id }}">
+                      <input type="hidden" name="idea_id" value="{{ idea.id }}">
+                      <input type="hidden" name="role" value="point">
+                      <button type="submit" class="cooldown-fill" data-cooldown-button data-cooldown-key="{{ matchup.id }}:{{ my_site }}" data-cooldown-until="{{ cooldown_until }}" data-cooldown-duration="{{ game.NOMINATION_COOLDOWN_SECONDS }}">Nominate me for point</button>
+                    </form>
+                  {% endif %}
+                </div>
+              {% endif %}
+            {% endfor %}
+          </article>
+        </div>
+      {% else %}
+        <h3>Waiting for matchups</h3>
+        <p class="muted">No pairings available yet.</p>
+      {% endif %}
+    </section>
+  {% else %}
+    <section class="panel center">
+      <h3>Waiting</h3>
+      <p class="muted">Waiting for the game master to advance the stage.</p>
+    </section>
+  {% endif %}
 {% endblock %}

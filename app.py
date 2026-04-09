@@ -274,6 +274,16 @@ def perform_action(action, data):
             if leader_id and team_id:
                 GAME.assign_leader_to_team(leader_id, team_id)
                 save_game()
+        elif action == "select_team_submitter":
+            team_id = _get_value(data, "team_id")
+            leader_id = _get_value(data, "leader_id")
+            if team_id and leader_id and GAME.select_team_submitter(team_id, leader_id):
+                save_game()
+        elif action == "clear_team_submitter":
+            team_id = _get_value(data, "team_id")
+            if team_id in GAME.team_submitters:
+                del GAME.team_submitters[team_id]
+                save_game()
         elif action == "set_leader_permission":
             leader_id = _get_value(data, "leader_id")
             leader = GAME.get_leader(leader_id)
@@ -288,8 +298,8 @@ def perform_action(action, data):
                 GAME.create_bracket(
                     name,
                     bracket_type=_get_value(data, "bracket_type") or None,
-                    target_count=int(_get_value(data, "target_count")) if _get_value(data, "target_count") else None,
                     description=(_get_value(data, "description", "") or "").strip(),
+                    output_count=int(_get_value(data, "output_count")) if _get_value(data, "output_count") else 0,
                 )
                 save_game()
         elif action == "update_bracket":
@@ -298,21 +308,51 @@ def perform_action(action, data):
                 bracket_id,
                 name=(_get_value(data, "name", "") or "").strip() or None,
                 bracket_type=_get_value(data, "bracket_type") or None,
-                target_count=int(_get_value(data, "target_count")) if _get_value(data, "target_count") else None,
                 description=(_get_value(data, "description", "") or "").strip(),
-                feeds_into=_get_list(data, "feeds_into"),
+                output_count=int(_get_value(data, "output_count")) if _get_value(data, "output_count") is not None and _get_value(data, "output_count") != "" else None,
             )
             save_game()
         elif action == "reorder_brackets":
             GAME.reorder_brackets(_get_list(data, "bracket_ids"))
             save_game()
-        elif action == "link_brackets":
-            source = _get_value(data, "source_bracket_id")
-            target = _get_value(data, "target_bracket_id")
-            bracket = GAME.get_bracket(source)
-            if bracket and target and target not in bracket.feeds_into:
-                bracket.feeds_into.append(target)
+        elif action == "clone_output_to_bracket":
+            source_bracket_id = _get_value(data, "source_bracket_id")
+            slot = _get_value(data, "slot")
+            target_bracket_id = _get_value(data, "target_bracket_id")
+            if GAME.clone_output_to_bracket(source_bracket_id, slot, target_bracket_id):
                 save_game()
+        elif action == "set_bracket_seed_order":
+            bracket_id = _get_value(data, "bracket_id")
+            ordered_idea_ids = _get_list(data, "ordered_idea_ids")
+            if GAME.set_bracket_seed_order(bracket_id, ordered_idea_ids) is not None:
+                save_game()
+        elif action == "create_custom_matchup":
+            name = (_get_value(data, "name", "") or "").strip()
+            description = (_get_value(data, "description", "") or "").strip()
+            left_idea_id = _get_value(data, "left_idea_id")
+            right_idea_id = _get_value(data, "right_idea_id")
+            if GAME.create_custom_matchup(name, description, left_idea_id, right_idea_id):
+                save_game()
+        elif action == "assign_matchup_to_round":
+            matchup_id = _get_value(data, "matchup_id")
+            round_id = _get_value(data, "round_id")
+            if GAME.assign_matchup_to_round(matchup_id, round_id):
+                save_game()
+        elif action == "reorder_matchups":
+            ordered_matchup_ids = _get_list(data, "matchup_ids")
+            GAME.reorder_matchups(ordered_matchup_ids)
+            save_game()
+        elif action == "reorder_round_matchups":
+            round_id = _get_value(data, "round_id")
+            ordered_matchup_ids = _get_list(data, "matchup_ids")
+            if GAME.reorder_round_matchups(round_id, ordered_matchup_ids):
+                save_game()
+        elif action == "add_round":
+            GAME.add_round()
+            save_game()
+        elif action == "remove_round":
+            GAME.remove_round()
+            save_game()
         elif action == "create_idea":
             title = (_get_value(data, "title", "") or "").strip()
             description = (_get_value(data, "description", "") or "").strip()
@@ -338,6 +378,10 @@ def perform_action(action, data):
                 category=_get_value(data, "category") or None,
                 assigned_team_id=_get_value(data, "assigned_team_id"),
                 assigned_leader_id=_get_value(data, "assigned_leader_id"),
+                point_miranda=_get_value(data, "point_miranda"),
+                point_kirrawee=_get_value(data, "point_kirrawee"),
+                backup_miranda=_get_value(data, "backup_miranda"),
+                backup_kirrawee=_get_value(data, "backup_kirrawee"),
             )
             save_game()
         elif action == "create_category":
@@ -374,6 +418,43 @@ def perform_action(action, data):
         elif action == "set_stage":
             GAME.set_stage(int(_get_value(data, "stage_index", 0)))
             save_game()
+        elif action == "add_round":
+            GAME.add_round()
+            save_game()
+        elif action == "remove_round":
+            GAME.remove_round()
+            save_game()
+        elif action == "auto_fill_round":
+            GAME.auto_fill_round()
+            save_game()
+        elif action == "reset_stage":
+            if GAME.reset_current_stage():
+                save_game()
+        elif action == "next_matchup":
+            GAME.next_matchup()
+            save_game()
+        elif action == "previous_matchup":
+            GAME.previous_matchup()
+            save_game()
+        elif action == "toggle_show_previous_matchups":
+            GAME.toggle_show_previous_matchups()
+            save_game()
+        elif action == "toggle_result_view":
+            GAME.toggle_result_view()
+            save_game()
+        elif action == "set_countdown_seconds":
+            GAME.set_countdown_seconds(_get_value(data, "countdown_seconds", 60))
+            save_game()
+        elif action == "pause_countdown":
+            if GAME.pause_matchup_countdown() is not None:
+                save_game()
+        elif action == "resume_countdown":
+            if GAME.resume_matchup_countdown() is not None:
+                save_game()
+        elif action == "speak_to_idea":
+            if GAME.pause_matchup_countdown() is not None:
+                GAME.message = "Countdown paused for speaking."
+                save_game()
         elif action == "reset_to_template":
             reset_from_template()
             flash("Game state reset to template.")
@@ -429,6 +510,7 @@ def root():
 def master_screen():
     require_local_access()
     teams = GAME.ordered_teams()
+    teams_needing_submitter = [team for team in teams if team.id != "unassigned" and not GAME.team_submitters.get(team.id)]
     brackets = GAME.ordered_brackets()
     leaders = GAME.sorted_leaders()
     ideas = [GAME.idea_display(idea) for idea in GAME.ideas_sorted()]
@@ -441,6 +523,11 @@ def master_screen():
         ideas=ideas,
         categories=[{"name": name, "color": color} for name, color in sorted(GAME.categories.items(), key=lambda item: item[0].lower())],
         leaders_by_team={team.id: [leader for leader in leaders if leader.team_id == team.id] for team in teams},
+        teams_needing_submitter=teams_needing_submitter,
+        team_submitters=dict(GAME.team_submitters),
+        volunteer_ids=set(GAME.submitter_volunteers.keys()),
+        pairing_matchups=GAME.pairing_matchups_display(),
+        pairing_live_matchups=GAME.active_round_matchups_display(),
         ideas_by_bracket={
             bracket.id: [
                 idea
@@ -449,7 +536,11 @@ def master_screen():
             ]
             for bracket in brackets
         },
-        stage_options=list(enumerate(Game.STAGES)),
+        outputs_by_bracket={bracket.id: GAME.bracket_output_view(bracket) for bracket in brackets},
+        bracket_previews={bracket.id: GAME.bracket_preview(bracket) for bracket in brackets},
+        standings_brackets=GAME.standings_bracket_views(),
+        rounds_display=GAME.rounds_display(),
+        stage_options=list(enumerate(GAME.stage_sequence())),
         saved_states=list_saved_states(),
         auto_refresh=True,
         page_name="master",
@@ -476,16 +567,32 @@ def game_screen():
     internet_login = f"{internet_base_url()}/user/login"
     ssid = current_wifi_ssid()
     wifi_payload = wifi_qr_payload(ssid)
+    intro_bg = url_for("static", filename="images/game-intro.png")
+    round_bg = url_for("static", filename="images/game-round.png")
+    active_matchups = GAME.active_round_matchups_display()
+    current_matchup_index = GAME.pairing_round.get("current_matchup_index", 0)
+    current_matchup = active_matchups[current_matchup_index] if active_matchups and 0 <= current_matchup_index < len(active_matchups) else None
     return render_template(
         "game.html",
         game_summary=GAME.summary(),
+        game=GAME,
+        current_matchup=current_matchup,
+        current_matchup_remaining=GAME.current_matchup_countdown_remaining(),
+        current_matchup_end=GAME.current_matchup_countdown_end(),
+        current_matchup_paused=GAME.pairing_round.get("countdown_paused", False),
+        intro_bg_url=intro_bg,
+        round_bg_url=round_bg,
+        winner_image_url=url_for("static", filename="images/winner.png"),
+        tie_image_url=url_for("static", filename="images/tie.png"),
         qr_data_url=make_qr_data_url(internet_login),
         login_url=internet_login,
         internet_login_url=internet_login,
         wifi_ssid=ssid,
         wifi_qr_data_url=make_qr_data_url(wifi_payload) if wifi_payload else None,
         show_nav=False,
-        header_title="BRACK-IDEA-RING",
+        show_header=False,
+        header_title="",
+        full_bleed=True,
         auto_refresh=True,
         page_name="game",
     )
@@ -504,11 +611,62 @@ def user_screen():
             page_name="user-login",
         )
     team = GAME.get_team(leader.team_id) if leader.team_id else None
+    team_submitter_id = GAME.team_submitters.get(team.id) if team else None
+    team_submitter = GAME.get_leader(team_submitter_id) if team_submitter_id else None
+    team_ideas = [GAME.idea_display(idea) for idea in GAME.team_ideas(team.id if team else None)]
+    can_submit_ideas = GAME.can_leader_submit_ideas(leader)
+    is_team_submitter = GAME.is_team_submitter(leader.id)
+    
+    # For pairing stage, only show the current matchup
+    current_matchup = GAME.current_matchup()
+    pairing_matchups = []
+    if current_matchup:
+        # Build display data for current matchup only
+        matchup_id = current_matchup.get("id")
+        idea_ids = current_matchup.get("idea_ids", [])
+        votes = GAME.pairing_round.get("votes", {}).get(matchup_id, {})
+        ideas = []
+        for idea_id in idea_ids:
+            idea = GAME.ideas.get(idea_id)
+            if not idea:
+                continue
+            vote_count = sum(1 for selected in votes.values() if selected == idea_id)
+            ideas.append({
+                "id": idea.id,
+                "title": idea.title,
+                "description": idea.description,
+                "votes": vote_count,
+                "point_ids": idea.point,
+                "backup_ids": idea.backup_point,
+                "point": {site: GAME.get_leader(leader_id).name if (leader_id := idea.point.get(site)) else None for site in [Site.MIRANDA.value, Site.KIRRAWEE.value]},
+                "backup": {site: GAME.get_leader(leader_id).name if (leader_id := idea.backup_point.get(site)) else None for site in [Site.MIRANDA.value, Site.KIRRAWEE.value]},
+            })
+        
+        # Calculate cooldowns for current matchup
+        my_site = leader.site or ""
+        site_key = f"{matchup_id}:{my_site}"
+        cooldown_left = GAME.cooldown_remaining(matchup_id, my_site)
+        cooldown_until = GAME.pairing_round.get("cooldowns", {}).get(site_key, 0)
+        
+        pairing_matchups = [{
+            "id": matchup_id,
+            "ideas": ideas,
+            "cooldowns": {my_site: cooldown_left} if my_site else {},
+            "cooldown_untils": {my_site: cooldown_until} if my_site else {},
+            "paused": GAME.pairing_round.get("countdown_paused", False),
+        }]
+    
     return render_template(
         "user_dashboard.html",
         game=GAME,
         leader=leader,
         team=team,
+        team_submitter=team_submitter,
+        team_has_submitter=bool(team_submitter),
+        team_ideas=team_ideas,
+        can_submit_ideas=can_submit_ideas,
+        is_team_submitter=is_team_submitter,
+        pairing_matchups=pairing_matchups,
         show_nav=False,
         header_title="BRACK-IDEA-RING",
         auto_refresh=True,
@@ -564,8 +722,86 @@ def user_submit_idea():
     description = request.form.get("description", "").strip()
     if title:
         with STATE_LOCK:
-            GAME.create_idea(title, description, created_by_id=leader.id)
+            idea = GAME.submit_idea_for_leader(leader, title, description)
+            if idea:
+                save_game()
+            else:
+                flash("You cannot submit ideas in this stage.")
+    return redirect(url_for("user_screen"))
+
+
+@app.post("/user/volunteer-submitter")
+def user_volunteer_submitter():
+    leader = current_leader()
+    if not leader:
+        return redirect(url_for("user_screen"))
+    with STATE_LOCK:
+        if GAME.stage == "team-leads-ideas":
+            GAME.volunteer_submitter(leader.id, volunteer=True)
             save_game()
+    return redirect(url_for("user_screen"))
+
+
+@app.post("/user/vote")
+def user_vote_idea():
+    leader = current_leader()
+    if not leader:
+        return redirect(url_for("user_screen"))
+    matchup_id = request.form.get("matchup_id", "")
+    idea_id = request.form.get("idea_id", "")
+    with STATE_LOCK:
+        if GAME.cast_vote(matchup_id, idea_id, leader.id):
+            save_game()
+        else:
+            flash("Could not record vote.")
+    return redirect(url_for("user_screen"))
+
+
+@app.post("/user/nominate")
+def user_nominate_role():
+    leader = current_leader()
+    if not leader:
+        return redirect(url_for("user_screen"))
+    matchup_id = request.form.get("matchup_id", "")
+    idea_id = request.form.get("idea_id", "")
+    role = request.form.get("role", "point")
+    with STATE_LOCK:
+        ok, message = GAME.nominate_point_role(matchup_id, idea_id, leader, role=role)
+        if ok:
+            save_game()
+        elif message:
+            flash(message)
+    return redirect(url_for("user_screen"))
+
+
+@app.post("/user/speak-to-idea")
+def user_speak_to_idea():
+    leader = current_leader()
+    if not leader:
+        return redirect(url_for("user_screen"))
+    matchup_id = request.form.get("matchup_id", "")
+    idea_id = request.form.get("idea_id", "")
+    with STATE_LOCK:
+        if GAME._matchup_by_id(matchup_id) and idea_id:
+            if GAME.pause_matchup_countdown() is not None:
+                GAME.message = f"Speaking about {GAME.get_idea(idea_id).title if GAME.get_idea(idea_id) else 'an idea'}"
+                save_game()
+    return redirect(url_for("user_screen"))
+
+
+@app.post("/user/nominate/opt-out")
+def user_nominate_opt_out():
+    leader = current_leader()
+    if not leader:
+        return redirect(url_for("user_screen"))
+    matchup_id = request.form.get("matchup_id", "")
+    idea_id = request.form.get("idea_id", "")
+    with STATE_LOCK:
+        ok, message = GAME.opt_out_nomination(matchup_id, idea_id, leader)
+        if ok:
+            save_game()
+        if message:
+            flash(message)
     return redirect(url_for("user_screen"))
 
 

@@ -11,11 +11,14 @@ class Idea:
         self.description = description
         self.category = category
         self.point = {Site.MIRANDA.value: None, Site.KIRRAWEE.value: None}
-        self.backupPoint = {Site.MIRANDA.value: None, Site.KIRRAWEE.value: None}
-        self.rawScore = 0
+        self.backup_point = {Site.MIRANDA.value: None, Site.KIRRAWEE.value: None}
         self.assigned_team_id = assigned_team_id
         self.assigned_leader_id = assigned_leader_id
         self.bracket_id = bracket_id
+        self.is_output_clone = False
+        self.output_source_bracket_id = None
+        self.output_slot = None
+        self.output_resolved_idea_id = None
         self.created_at = created_at or datetime.now(timezone.utc).isoformat()
 
     def to_dict(self):
@@ -25,11 +28,14 @@ class Idea:
             "description": self.description,
             "category": self.category,
             "point": dict(self.point),
-            "backupPoint": dict(self.backupPoint),
-            "rawScore": self.rawScore,
+            "backup_point": dict(self.backup_point),
             "assigned_team_id": self.assigned_team_id,
             "assigned_leader_id": self.assigned_leader_id,
             "bracket_id": self.bracket_id,
+            "is_output_clone": self.is_output_clone,
+            "output_source_bracket_id": self.output_source_bracket_id,
+            "output_slot": self.output_slot,
+            "output_resolved_idea_id": self.output_resolved_idea_id,
             "created_at": self.created_at,
         }
 
@@ -46,8 +52,11 @@ class Idea:
             created_at=data.get("created_at"),
         )
         idea.point = dict(data.get("point", idea.point))
-        idea.backupPoint = dict(data.get("backupPoint", idea.backupPoint))
-        idea.rawScore = data.get("rawScore", 0)
+        idea.backup_point = dict(data.get("backup_point", idea.backup_point))
+        idea.is_output_clone = bool(data.get("is_output_clone", False))
+        idea.output_source_bracket_id = data.get("output_source_bracket_id")
+        idea.output_slot = data.get("output_slot")
+        idea.output_resolved_idea_id = data.get("output_resolved_idea_id")
         return idea
 
     def __str__(self):

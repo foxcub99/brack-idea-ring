@@ -6,6 +6,7 @@
       <button type="button" class="tab-button" data-tab-button="people">People</button>
       <button type="button" class="tab-button" data-tab-button="ideas">Ideas</button>
       <button type="button" class="tab-button" data-tab-button="brackets">Brackets</button>
+      <button type="button" class="tab-button" data-tab-button="standings">Standings</button>
     </div>
 
     <div class="tab-panel" data-tab-panel="game">
@@ -23,10 +24,14 @@
             <label>Jump to stage</label>
             <select name="stage_index">
               {% for index, stage in stage_options %}
-                <option value="{{ index }}" {% if index == game.current_stage %}selected{% endif %}>{{ stage.replace('-', ' ').title() }}</option>
+                <option value="{{ index }}" {% if index == game.current_stage %}selected{% endif %}>{{ game.stage_title(stage) }}</option>
               {% endfor %}
             </select>
             <button type="submit">Set stage</button>
+          </form>
+          <form method="post" action="{{ url_for('master_action') }}" class="stack gap-sm">
+            <input type="hidden" name="action" value="reset_stage">
+            <button type="submit" class="warning">Reset stage</button>
           </form>
         </div>
 
@@ -56,6 +61,139 @@
           </form>
         </div>
       </div>
+
+      {% if game.stage == "team-leads-ideas" and teams_needing_submitter %}
+        <section class="panel">
+          <h3>Select one submitter per team</h3>
+          <div class="submitter-team-grid">
+            {% for team in teams_needing_submitter %}
+              <div class="submitter-team-column">
+                <div class="leader-column-head">
+                  <strong>{{ team.name }}</strong>
+                  <span>{{ team.get_members()|length }}</span>
+                </div>
+                <div class="submitter-list">
+                  {% for leader in leaders_by_team[team.id] %}
+                    {% set is_selected = team_submitters.get(team.id) == leader.id %}
+                    {% set is_volunteer = leader.id in volunteer_ids %}
+                    <form method="post" action="{{ url_for('master_action') }}" class="submitter-row {% if is_selected %}is-selected{% endif %} {% if is_volunteer %}is-volunteer{% endif %}">
+                      <input type="hidden" name="action" value="select_team_submitter">
+                      <input type="hidden" name="team_id" value="{{ team.id }}">
+                      <input type="hidden" name="leader_id" value="{{ leader.id }}">
+                      <button type="submit" class="secondary">{{ leader.name }}</button>
+                      <span class="muted">{{ leader.site or 'No site' }}</span>
+                    </form>
+                  {% else %}
+                    <div class="leader-empty">No members in this team</div>
+                  {% endfor %}
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        </section>
+      {% endif %}
+
+      {% if game.stage.startswith('round-') or game.stage.startswith('prepare-round-') %}
+        <section class="panel">
+          <div class="panel-head">
+            <h3>Pairing live monitor</h3>
+            <div class="inline-actions">
+              <button type="button" class="secondary" data-api-action="resume_countdown">Resume</button>
+              <form class="inline-actions compact-countdown-form" data-api-form="set_countdown_seconds">
+                <input type="number" min="0" name="countdown_seconds" value="{{ game.pairing_round.countdown_seconds or 60 }}" class="countdown-input" title="Countdown seconds">
+                <button type="submit" class="secondary">Save</button>
+              </form>
+              <button type="button" class="secondary" data-api-action="previous_matchup" {% if game.pairing_round.current_matchup_index == 0 %}disabled{% endif %}>← Back</button>
+              <button type="button" class="secondary" data-api-action="toggle_result_view">Result</button>
+              <span class="muted">Matchup {{ game.pairing_round.current_matchup_index + 1 }} / {{ pairing_live_matchups|length }}</span>
+              <button type="button" class="secondary" data-api-action="next_matchup" {% if game.pairing_round.current_matchup_index + 1 >= pairing_live_matchups|length %}disabled{% endif %}>Next →</button>
+              <button type="button" class="secondary" data-api-action="toggle_show_previous_matchups">
+                {% if game.pairing_round.show_previous_matchups %}Hide previous{% else %}Show previous{% endif %}
+              </button>
+            </div>
+          </div>
+          
+          <div class="pairing-grid">
+            {% if game.pairing_round.show_previous_matchups %}
+              {% for matchup in pairing_live_matchups %}
+                {% set is_current = loop.index0 == game.pairing_round.current_matchup_index %}
+                <article class="pairing-card" {% if is_current %}style="border-color: #38bdf8; border-width: 2px;"{% endif %}>
+                  <strong>Matchup {{ loop.index }}{% if is_current %} (ACTIVE){% endif %}</strong>
+                  {% for idea in matchup.ideas %}
+                    <div class="pairing-idea-row">
+                      <span>{{ idea.title }}</span>
+                      <span class="chip">Votes {{ idea.votes }}</span>
+                    </div>
+                    <div class="muted">{{ idea.description or 'No description' }}</div>
+                    {% for nomination in idea.nominations %}
+                      <div class="muted">{{ nomination.name }} from {{ nomination.site }} has nominated for {{ nomination.role }}.</div>
+                    {% endfor %}
+                    {% if game.pairing_round.show_result %}
+                      <div class="matchup-score">Total score: {{ idea.score }}</div>
+                      {% if matchup.result and not matchup.result.tie and matchup.result.winner_id == idea.id %}
+                        <img class="result-image small" src="{{ url_for('static', filename='images/winner.png') }}" alt="Winner">
+                      {% elif matchup.result and matchup.result.tie %}
+                        <img class="result-image small" src="{{ url_for('static', filename='images/winner.png') }}" alt="Winner">
+                      {% endif %}
+                    {% endif %}
+                    <div class="muted">Point: Miranda {{ idea.point['Miranda'] or '—' }} · Kirrawee {{ idea.point['Kirrawee'] or '—' }}</div>
+                    <div class="muted">Backup: Miranda {{ idea.backup['Miranda'] or '—' }} · Kirrawee {{ idea.backup['Kirrawee'] or '—' }}</div>
+                  {% endfor %}
+                  {# tie result uses winner art under each idea #}
+                </article>
+              {% endfor %}
+            {% else %}
+              {% set current_matchup = pairing_live_matchups[game.pairing_round.current_matchup_index] if game.pairing_round.current_matchup_index < pairing_live_matchups|length else None %}
+              {% if current_matchup %}
+                <article class="pairing-card" style="border-color: #38bdf8; border-width: 2px;">
+                  <strong>Matchup {{ game.pairing_round.current_matchup_index + 1 }} (ACTIVE)</strong>
+                  {% for idea in current_matchup.ideas %}
+                    <div class="pairing-idea-row">
+                      <span>{{ idea.title }}</span>
+                      <span class="chip">Votes {{ idea.votes }}</span>
+                    </div>
+                    <div class="muted">{{ idea.description or 'No description' }}</div>
+                    {% for nomination in idea.nominations %}
+                      <div class="muted">{{ nomination.name }} from {{ nomination.site }} has nominated for {{ nomination.role }}.</div>
+                    {% endfor %}
+                    {% if game.pairing_round.show_result %}
+                      <div class="matchup-score">Total score: {{ idea.score }}</div>
+                      {% if current_matchup.result and not current_matchup.result.tie and current_matchup.result.winner_id == idea.id %}
+                        <img class="result-image small" src="{{ url_for('static', filename='images/winner.png') }}" alt="Winner">
+                      {% elif current_matchup.result and current_matchup.result.tie %}
+                        <img class="result-image small" src="{{ url_for('static', filename='images/winner.png') }}" alt="Winner">
+                      {% endif %}
+                    {% endif %}
+                    <div class="muted">Point: Miranda {{ idea.point['Miranda'] or '—' }} · Kirrawee {{ idea.point['Kirrawee'] or '—' }}</div>
+                    <div class="muted">Backup: Miranda {{ idea.backup['Miranda'] or '—' }} · Kirrawee {{ idea.backup['Kirrawee'] or '—' }}</div>
+                  {% endfor %}
+                  {# tie result uses winner art under each idea #}
+                </article>
+
+                {% for matchup in pairing_live_matchups %}
+                  {% if loop.index0 > game.pairing_round.current_matchup_index %}
+                    <article class="pairing-card">
+                      <strong>Matchup {{ loop.index }} (FUTURE)</strong>
+                      {% for idea in matchup.ideas %}
+                        <div class="pairing-idea-row">
+                          <span>{{ idea.title }}</span>
+                          <span class="chip">Votes {{ idea.votes }}</span>
+                        </div>
+                        <div class="muted">{{ idea.description or 'No description' }}</div>
+                        {% for nomination in idea.nominations %}
+                          <div class="muted">{{ nomination.name }} from {{ nomination.site }} has nominated for {{ nomination.role }}.</div>
+                        {% endfor %}
+                      {% endfor %}
+                    </article>
+                  {% endif %}
+                {% endfor %}
+              {% else %}
+                <div class="muted">No matchups yet. Add ideas then re-enter this stage.</div>
+              {% endif %}
+            {% endif %}
+          </div>
+        </section>
+      {% endif %}
     </div>
 
     <div class="tab-panel" data-tab-panel="people">
@@ -210,13 +348,16 @@
 
         <div class="idea-list compact-list" data-ideas-list>
           {% for idea in ideas %}
-            <article class="idea-card compact" draggable="true" data-idea-card data-idea-id="{{ idea.id }}" data-idea-title="{{ idea.title }}" data-idea-category="{{ idea.category or 'General' }}" data-idea-team="{{ idea.team_name or 'Unassigned' }}" data-idea-created="{{ idea.created_at or '' }}" data-idea-bracket="{{ idea.bracket_name or 'Main / unassigned' }}" data-idea-bracket-id="{{ idea.bracket_id or '' }}" data-idea-description="{{ idea.description|e }}" data-idea-assigned-team-id="{{ idea.assigned_team_id or '' }}" data-idea-assigned-leader-id="{{ idea.assigned_leader_id or '' }}">
+            <article class="idea-card compact" draggable="true" data-idea-card data-idea-id="{{ idea.id }}" data-idea-title="{{ idea.title }}" data-idea-category="{{ idea.category or 'General' }}" data-idea-team="{{ idea.team_name or 'Unassigned' }}" data-idea-created="{{ idea.created_at or '' }}" data-idea-bracket="{{ idea.bracket_name or 'Main / unassigned' }}" data-idea-bracket-id="{{ idea.bracket_id or '' }}" data-idea-description="{{ idea.description|e }}" data-idea-assigned-team-id="{{ idea.assigned_team_id or '' }}" data-idea-assigned-leader-id="{{ idea.assigned_leader_id or '' }}" data-idea-point-miranda="{{ idea.point['Miranda'] or '' }}" data-idea-point-kirrawee="{{ idea.point['Kirrawee'] or '' }}" data-idea-backup-miranda="{{ idea.backup_point['Miranda'] or '' }}" data-idea-backup-kirrawee="{{ idea.backup_point['Kirrawee'] or '' }}">
               <div class="idea-card-title-row">
                 <strong>{{ idea.title }}</strong>
                 <div class="idea-meta compact-meta">
                   <span class="chip" style="background: {{ idea.category_color or '#38bdf8' }}22; border: 1px solid {{ idea.category_color or '#38bdf8' }}66;">{{ idea.category or "General" }}</span>
                   <span>{{ idea.team_name or "Unassigned" }}</span>
-                  <span>{{ idea.created_at or "" }}</span>
+                  <span>Point M: {{ idea.point_miranda_name or '—' }}</span>
+                  <span>Point K: {{ idea.point_kirrawee_name or '—' }}</span>
+                  <span>Backup M: {{ idea.backup_miranda_name or '—' }}</span>
+                  <span>Backup K: {{ idea.backup_kirrawee_name or '—' }}</span>
                 </div>
                 <button type="button" class="secondary" data-idea-edit>Edit</button>
               </div>
@@ -229,77 +370,260 @@
 
     <div class="tab-panel" data-tab-panel="brackets">
       <section class="panel brackets-panel">
-          <div class="panel-head">
-            <h3>Brackets</h3>
+        <div class="planner-grid-top">
+          <section class="panel">
+            <h4>New bracket</h4>
+            <form class="stack gap-sm bracket-editor" data-api-form="create_bracket">
+              <div class="inline-fields">
+                <input name="name" placeholder="Bracket name">
+                <select name="bracket_type">
+                  <option value="">Type</option>
+                  {% for option in bracket_type_options %}
+                    <option value="{{ option }}">{{ option }}</option>
+                  {% endfor %}
+                </select>
+                <input name="output_count" type="number" min="0" placeholder="Outputs">
+              </div>
+              <textarea name="description" rows="2" placeholder="Description"></textarea>
+              <button type="submit">Add bracket</button>
+            </form>
+          </section>
+
+          <section class="panel">
+            <h4>Custom matchup</h4>
+            <form class="stack gap-sm" data-api-form="create_custom_matchup">
+              <input name="name" placeholder="Matchup name">
+              <textarea name="description" rows="2" placeholder="Description"></textarea>
+              <div class="inline-fields">
+                <select name="left_idea_id">
+                  <option value="">Left idea</option>
+                  {% for idea in ideas %}
+                    <option value="{{ idea.id }}">{{ idea.title }}</option>
+                  {% endfor %}
+                </select>
+                <select name="right_idea_id">
+                  <option value="">Right idea</option>
+                  {% for idea in ideas %}
+                    <option value="{{ idea.id }}">{{ idea.title }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <button type="submit">Save matchup</button>
+            </form>
+          </section>
+
+          <section class="panel">
+            <h4>Round buttons</h4>
+            <div class="inline-actions">
+              <button type="button" class="secondary" data-api-action="auto_fill_round">Auto</button>
+              <button type="button" class="secondary" data-api-action="add_round">New round</button>
+              <button type="button" class="secondary" data-api-action="remove_round">Delete round</button>
+            </div>
+          </section>
+        </div>
+
+        <div class="planner-grid-bottom">
+          <section class="panel">
+            <h4>Brackets</h4>
+            <div class="bracket-board" data-bracket-board>
+              {% for bracket in brackets %}
+                <article class="bracket-card" data-bracket-card data-bracket-id="{{ bracket.id }}" data-bracket-name="{{ bracket.name }}" data-bracket-type="{{ bracket.type or '' }}" data-bracket-description="{{ bracket.description|e }}" data-bracket-output-count="{{ bracket.output_count or 0 }}" data-bracket-played="{{ bracket.matches|length }}">
+                  <div class="bracket-head">
+                    <div>
+                      <strong>{{ bracket.name }}</strong>
+                      <div class="muted">{{ bracket.type or "No type" }} · Outputs {{ bracket.output_count or 0 }}</div>
+                    </div>
+                    <div class="inline-actions">
+                      <button type="button" class="secondary" data-bracket-edit>Edit</button>
+                      <button type="button" class="secondary" data-bracket-seed>Seed</button>
+                    </div>
+                  </div>
+                  <div class="muted">{{ bracket.description or "No description" }}</div>
+                  <div class="bracket-ideas" data-bracket-ideas>
+                    {% for idea in ideas_by_bracket[bracket.id] %}
+                      <div class="chip idea-chip" draggable="true" data-idea-chip data-idea-id="{{ idea.id }}">
+                        <span>{{ idea.title }}</span>
+                        {% if idea.is_output_clone %}
+                          <button type="button" class="chip-remove" data-remove-idea data-idea-id="{{ idea.id }}">&times;</button>
+                        {% endif %}
+                      </div>
+                    {% else %}
+                      <div class="muted">Drop ideas here</div>
+                    {% endfor %}
+                  </div>
+                  <div class="bracket-outputs">
+                    <strong>Outputs</strong>
+                    <div class="bracket-output-list">
+                      {% for output in outputs_by_bracket[bracket.id] %}
+                        <div class="chip output-chip" draggable="true" data-output-chip data-source-bracket-id="{{ bracket.id }}" data-output-slot="{{ output.slot }}">
+                          {{ output.label }}
+                          {% if output.resolved_idea_title %}<span class="muted">→ {{ output.resolved_idea_title }}</span>{% endif %}
+                        </div>
+                      {% else %}
+                        <span class="muted">No outputs configured</span>
+                      {% endfor %}
+                    </div>
+                  </div>
+                </article>
+              {% endfor %}
+            </div>
+          </section>
+
+          <section class="panel">
+            <h4>Matchups</h4>
+            <div class="stack gap-xs" data-matchups-column>
+              {% for matchup in pairing_matchups %}
+                <article class="chip matchup-chip" draggable="true" data-matchup-card data-matchup-id="{{ matchup.id }}">
+                  {{ matchup.display_label }}
+                </article>
+              {% else %}
+                <div class="muted">No current matchups.</div>
+              {% endfor %}
+            </div>
+          </section>
+
+          <section class="panel">
+            <h4>Rounds</h4>
+            <div class="stack gap-sm" data-rounds-column>
+              {% for round_item in rounds_display %}
+                <article class="round-card" data-round-dropzone data-round-id="{{ round_item.id }}">
+                  <strong>{{ round_item.name }}</strong>
+                  <div class="stack gap-xs">
+                    {% for matchup in round_item.matchups %}
+                      <article class="chip matchup-chip" draggable="true" data-matchup-card data-matchup-id="{{ matchup.id }}" data-round-matchup="1" data-round-id="{{ round_item.id }}">
+                        {{ matchup.display_label }}
+                      </article>
+                    {% else %}
+                      <div class="muted">Drop matchup here</div>
+                    {% endfor %}
+                  </div>
+                </article>
+              {% else %}
+                <div class="muted">No rounds yet.</div>
+              {% endfor %}
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <div class="bracket-modal hidden" data-bracket-modal>
+        <div class="modal-overlay" data-bracket-modal-close></div>
+        <div class="modal-content">
+          <div class="modal-head">
+            <strong>Edit bracket</strong>
+            <button type="button" class="secondary" data-bracket-modal-close>Close</button>
           </div>
-
-          <form class="stack gap-sm bracket-editor" data-api-form="create_bracket">
-            <div class="inline-fields">
-              <input name="name" placeholder="Bracket name">
-              <select name="bracket_type">
-                <option value="">Type</option>
-                {% for option in bracket_type_options %}
-                  <option value="{{ option }}">{{ option }}</option>
-                {% endfor %}
-              </select>
-              <input name="target_count" type="number" min="0" placeholder="Target size">
-            </div>
-            <textarea name="description" rows="2" placeholder="Description"></textarea>
-            <button type="submit">Add bracket</button>
-          </form>
-
-          <form class="stack gap-sm bracket-editor" data-api-form="update_bracket">
+          <form class="stack gap-sm" data-api-form="update_bracket">
             <input type="hidden" name="bracket_id" data-bracket-edit-id>
-            <div class="inline-fields">
-              <select data-bracket-select>
-                <option value="">Choose bracket to edit</option>
-                {% for bracket in brackets %}
-                  <option value="{{ bracket.id }}">{{ bracket.name }}</option>
-                {% endfor %}
-              </select>
-              <input name="name" placeholder="Edit name">
-              <select name="bracket_type">
-                <option value="">Type</option>
-                {% for option in bracket_type_options %}
-                  <option value="{{ option }}">{{ option }}</option>
-                {% endfor %}
-              </select>
-              <input name="target_count" type="number" min="0" placeholder="Target size">
-            </div>
-            <textarea name="description" rows="2" placeholder="Edit description"></textarea>
+            <label>Name</label>
+            <input name="name" data-bracket-edit-name>
+            <label>Type</label>
+            <select name="bracket_type" data-bracket-edit-type>
+              {% for option in bracket_type_options %}
+                <option value="{{ option }}">{{ option }}</option>
+              {% endfor %}
+            </select>
+            <label>Description</label>
+            <textarea name="description" rows="2" data-bracket-edit-description></textarea>
+            <label>Outputs</label>
+            <input name="output_count" type="number" min="0" data-bracket-edit-output-count>
             <button type="submit">Save bracket</button>
           </form>
+        </div>
+      </div>
 
-          <div class="bracket-board" data-bracket-board>
-            {% for bracket in brackets %}
-              <article class="bracket-card" data-bracket-card data-bracket-id="{{ bracket.id }}" data-bracket-name="{{ bracket.name }}" data-bracket-type="{{ bracket.type or '' }}" data-bracket-target-count="{{ bracket.target_count or '' }}" data-bracket-description="{{ bracket.description|e }}">
-                <div class="bracket-head">
-                  <div class="bracket-link-handle" data-bracket-link-handle title="Drag to link">◉</div>
-                  <div>
-                    <strong>{{ bracket.name }}</strong>
-                    <div class="muted">{{ bracket.type or "No type" }} · Target {{ bracket.target_count or "—" }}</div>
-                  </div>
-                  <button type="button" class="secondary" data-bracket-edit>Pick</button>
-                </div>
-                <div class="muted">{{ bracket.description or "No description" }}</div>
-                <div class="bracket-ideas" data-bracket-ideas>
-                  {% for idea in ideas_by_bracket[bracket.id] %}
-                    <div class="chip idea-chip" draggable="true" data-idea-chip data-idea-id="{{ idea.id }}">{{ idea.title }}</div>
-                  {% else %}
-                    <div class="muted">Drop ideas here</div>
-                  {% endfor %}
-                </div>
-                <div class="bracket-links">
-                  {% for target_id in bracket.feeds_into %}
-                    {% set target = game.get_bracket(target_id) %}
-                    {% if target %}<span class="chip">→ {{ target.name }}</span>{% endif %}
-                  {% else %}
-                    <span class="muted">No downstream brackets</span>
-                  {% endfor %}
-                </div>
-              </article>
-            {% endfor %}
+      <div class="seed-modal hidden" data-seed-modal>
+        <div class="modal-overlay" data-seed-modal-close></div>
+        <div class="modal-content seed-modal-content">
+          <div class="modal-head">
+            <strong data-seed-title>Seed bracket</strong>
+            <button type="button" class="secondary" data-seed-modal-close>Close</button>
           </div>
+          <div class="seed-layout">
+            <div>
+              <h4>Seeds</h4>
+              <div class="seed-list" data-seed-list></div>
+              <div class="inline-actions">
+                <button type="button" class="secondary" data-seed-save>Save order</button>
+              </div>
+            </div>
+            <div>
+              <h4>Schedule</h4>
+              <div class="seed-preview" data-seed-schedule-preview></div>
+              <h4 style="margin-top: 1rem;">Actual matches</h4>
+              <div class="seed-preview" data-seed-match-preview></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-panel" data-tab-panel="standings">
+      <section class="panel">
+        <h3>Standings</h3>
+        <div class="stack gap-sm">
+          {% for item in standings_brackets %}
+            {% set bracket = item.bracket %}
+            <article class="bracket-card">
+              <div class="bracket-head">
+                <div>
+                  <strong>{{ bracket.name }}</strong>
+                  <div class="muted">{{ bracket.type or "No type" }}</div>
+                </div>
+                {% if item.is_ready %}
+                  <span class="chip">Ready</span>
+                {% else %}
+                  <span class="chip warning">Waiting</span>
+                {% endif %}
+              </div>
+
+              {% if item.blockers %}
+                <div class="muted">
+                  {% for source_id, slots in item.blockers.items() %}
+                    {% set source = game.get_bracket(source_id) %}
+                    Waiting for {{ source.name if source else source_id }} output {{ (slots|list|sort)|join(', ') }}.
+                  {% endfor %}
+                </div>
+              {% endif %}
+
+              <div class="seed-preview">
+                {% for line in bracket_previews[bracket.id].lines %}
+                  <div>{{ line }}</div>
+                {% endfor %}
+              </div>
+
+              {% if bracket.standings %}
+                <table class="mini-table">
+                  <thead>
+                    <tr>
+                      <th>Idea</th>
+                      <th>P</th>
+                      <th>W</th>
+                      <th>L</th>
+                      <th>T</th>
+                      <th>Pts</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for idea_id, row in bracket.ranking() %}
+                      {% set idea_obj = game.get_idea(idea_id) %}
+                      <tr>
+                        <td>{{ idea_obj.title if idea_obj else idea_id }}</td>
+                        <td>{{ row.played }}</td>
+                        <td>{{ row.won }}</td>
+                        <td>{{ row.lost }}</td>
+                        <td>{{ row.tied }}</td>
+                        <td>{{ row.points }}</td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              {% endif %}
+            </article>
+          {% else %}
+            <div class="muted">No brackets configured.</div>
+          {% endfor %}
+        </div>
       </section>
     </div>
   </section>
@@ -334,6 +658,34 @@
           <option value="">None</option>
           {% for team in teams %}
             <option value="{{ team.id }}">{{ team.name }}</option>
+          {% endfor %}
+        </select>
+        <label>Point (Miranda)</label>
+        <select name="point_miranda" data-idea-point-miranda-field>
+          <option value="">None</option>
+          {% for leader in leaders if leader.site == 'Miranda' %}
+            <option value="{{ leader.id }}">{{ leader.name }}</option>
+          {% endfor %}
+        </select>
+        <label>Point (Kirrawee)</label>
+        <select name="point_kirrawee" data-idea-point-kirrawee-field>
+          <option value="">None</option>
+          {% for leader in leaders if leader.site == 'Kirrawee' %}
+            <option value="{{ leader.id }}">{{ leader.name }}</option>
+          {% endfor %}
+        </select>
+        <label>Backup point (Miranda)</label>
+        <select name="backup_miranda" data-idea-backup-miranda-field>
+          <option value="">None</option>
+          {% for leader in leaders if leader.site == 'Miranda' and leader.type == 'Adult' %}
+            <option value="{{ leader.id }}">{{ leader.name }}</option>
+          {% endfor %}
+        </select>
+        <label>Backup point (Kirrawee)</label>
+        <select name="backup_kirrawee" data-idea-backup-kirrawee-field>
+          <option value="">None</option>
+          {% for leader in leaders if leader.site == 'Kirrawee' and leader.type == 'Adult' %}
+            <option value="{{ leader.id }}">{{ leader.name }}</option>
           {% endfor %}
         </select>
         <label>Bracket</label>
